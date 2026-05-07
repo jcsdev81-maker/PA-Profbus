@@ -1,0 +1,2058 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a4db5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BIO·PA">
+<meta name="description" content="Análise e relatório técnico de redes PROFIBUS PA. Funciona 100% offline.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Ccircle cx='96' cy='96' r='96' fill='%231a4db5'/%3E%3Ccircle cx='96' cy='96' r='20' fill='%23fff'/%3E%3Cpath d='M96 20l10 40-10 6-10-6z' fill='%23fff'/%3E%3Cpath d='M96 172l10-40-10-6-10 6z' fill='%23fff'/%3E%3Cpath d='M20 96l40 10 6-10-6-10z' fill='%23fff'/%3E%3Cpath d='M172 96l-40 10-6-10 6-10z' fill='%23fff'/%3E%3Ccircle cx='152' cy='40' r='24' fill='%2300c8b4' opacity='.9'/%3E%3C/svg%3E">
+<title>BIO·PA · PROFIBUS PA Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   BIO·PA — PROFIBUS PA Analyzer
+   Identidade: azul profissional (PA = IEC 61158-2 MBP)
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --pa-blue:#1a4db5;
+  --pa-blue-dark:#0f2f78;
+  --pa-blue-mid:#2a5fd0;
+  --pa-teal:#00c8b4;
+  --pa-teal-dim:#009e8e;
+  --pa-yellow:#ffd400;
+
+  --bg:#eef1f7;
+  --surface:#ffffff;
+  --surface-2:#f5f7fb;
+  --border:#d4d9e8;
+  --border-2:#bcc4da;
+  --text:#1a1f3a;
+  --text-2:#444e72;
+  --muted:#7a83a8;
+  --dim:#aab0c8;
+
+  --good:#1a9e50;
+  --good-dark:#0f6333;
+  --good-light:#b8edd0;
+  --warn:#e07b00;
+  --warn-dark:#8a4d00;
+  --warn-light:#fff0cc;
+  --crit:#d02828;
+  --crit-dark:#8a1010;
+  --crit-light:#fdd4d4;
+
+  --font-sans:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --font-mono:'JetBrains Mono','SF Mono','Cascadia Code',Consolas,'Courier New',monospace;
+  --font-doc: Arial,'Liberation Sans','Helvetica Neue',sans-serif;
+
+  --radius:8px;
+  --radius-lg:12px;
+  --shadow:0 1px 3px rgba(0,0,0,0.05),0 1px 2px rgba(0,0,0,0.07);
+  --shadow-lg:0 4px 16px rgba(26,77,181,0.12),0 1px 3px rgba(0,0,0,0.06);
+}
+
+html,body{height:100%}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:var(--font-sans);font-size:15px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+}
+
+/* ====================== HEADER ====================== */
+.app-header{
+  background:linear-gradient(135deg,var(--pa-blue-dark) 0%,var(--pa-blue) 55%,var(--pa-blue-mid) 100%);
+  color:#fff;padding:18px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:16px;flex-wrap:wrap;
+  box-shadow:0 2px 10px rgba(15,47,120,0.25);
+  position:relative;overflow:hidden;
+}
+.app-header::before{
+  content:'PA';position:absolute;right:24px;top:50%;transform:translateY(-50%);
+  font-size:88px;font-weight:900;color:rgba(255,255,255,0.04);
+  font-family:var(--font-mono);letter-spacing:-4px;pointer-events:none;
+  line-height:1;
+}
+.app-header::after{
+  content:'';position:absolute;
+  top:-20px;right:220px;width:120px;height:120px;
+  background:radial-gradient(circle,var(--pa-teal) 0%,transparent 70%);
+  opacity:0.15;pointer-events:none;
+}
+.brand{display:flex;align-items:center;gap:14px;position:relative}
+.brand-mark{
+  width:46px;height:46px;
+  display:grid;place-items:center;
+  background:var(--pa-teal);border-radius:50%;
+  box-shadow:0 0 0 3px rgba(255,255,255,0.15);
+  flex-shrink:0;
+}
+.brand-text h1{font-size:18px;font-weight:700;letter-spacing:-0.01em;line-height:1.1}
+.brand-text p{font-size:11px;font-weight:500;opacity:0.8;text-transform:uppercase;letter-spacing:0.12em;margin-top:2px}
+
+.header-right{display:flex;align-items:center;gap:10px;position:relative}
+.header-status{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.18);
+  padding:6px 12px;border-radius:20px;
+  font-family:var(--font-mono);font-size:11px;
+  text-transform:uppercase;letter-spacing:0.06em;
+}
+.status-led{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.4)}
+.status-led.live{background:var(--pa-teal);box-shadow:0 0 8px var(--pa-teal);animation:pulse 1.4s infinite}
+.status-led.done{background:#4ade80;box-shadow:0 0 8px #4ade80}
+.status-led.err{background:var(--crit);box-shadow:0 0 8px var(--crit)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+
+.shell{max-width:1180px;margin:0 auto;padding:24px}
+
+/* ====================== DROPZONE ====================== */
+.dropzone{
+  background:var(--surface);
+  border:2px dashed var(--border-2);
+  border-radius:var(--radius-lg);
+  padding:64px 24px;text-align:center;cursor:pointer;
+  transition:all 0.2s;position:relative;overflow:hidden;
+}
+.dropzone:hover,.dropzone.over{
+  border-color:var(--pa-blue);background:var(--surface-2);
+  box-shadow:var(--shadow-lg);
+}
+.dropzone-icon{
+  display:inline-flex;width:68px;height:68px;
+  background:linear-gradient(135deg,var(--pa-blue) 0%,var(--pa-teal) 100%);
+  border-radius:50%;align-items:center;justify-content:center;
+  color:#fff;margin-bottom:18px;
+  box-shadow:0 4px 14px rgba(26,77,181,0.3);
+}
+.dropzone h2{font-size:22px;font-weight:600;margin-bottom:6px;letter-spacing:-0.01em;color:var(--text)}
+.dropzone p{color:var(--text-2);margin-bottom:16px;font-size:14px}
+.dropzone-hint{
+  display:inline-block;font-family:var(--font-mono);font-size:11px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:0.1em;padding:4px 12px;
+  background:var(--bg);border-radius:4px;border:1px solid var(--border);
+}
+.pa-badge{
+  position:absolute;top:16px;right:16px;
+  font-family:var(--font-mono);font-size:10px;font-weight:600;
+  background:var(--pa-blue);color:#fff;
+  padding:4px 10px;border-radius:12px;letter-spacing:0.08em;
+  text-transform:uppercase;
+}
+
+/* ====================== WORKSPACE ====================== */
+.workspace{display:flex;flex-direction:column;gap:18px}
+.file-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px 18px;
+  gap:12px;flex-wrap:wrap;box-shadow:var(--shadow);
+}
+.file-info{display:flex;align-items:center;gap:14px;min-width:0;flex:1}
+.file-pdf-tag{
+  font-family:var(--font-mono);font-weight:600;font-size:11px;
+  background:var(--pa-blue);color:#fff;
+  padding:6px 10px;border-radius:4px;letter-spacing:0.05em;flex-shrink:0;
+}
+.file-info strong{display:block;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-info .meta{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+
+.tabs-bar{
+  display:flex;gap:4px;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:4px;box-shadow:var(--shadow);flex-wrap:wrap;
+}
+.tab-btn{
+  flex:1;min-width:110px;background:transparent;border:none;
+  padding:10px 14px;font-family:var(--font-sans);font-size:13px;font-weight:500;
+  color:var(--text-2);cursor:pointer;border-radius:6px;transition:all 0.15s;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.tab-btn:hover{background:var(--bg);color:var(--text)}
+.tab-btn.active{background:var(--pa-blue);color:#fff;box-shadow:0 2px 6px rgba(26,77,181,0.28)}
+.tab-btn .num{font-family:var(--font-mono);font-size:10px;background:rgba(0,0,0,0.08);padding:1px 6px;border-radius:8px}
+.tab-btn.active .num{background:rgba(255,255,255,0.22)}
+
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.panel-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.panel-head h3{font-size:15px;font-weight:600;letter-spacing:-0.01em}
+.panel-head .desc{font-size:12px;color:var(--muted);font-family:var(--font-mono)}
+.panel-body{padding:18px}
+
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.form-grid.full{grid-template-columns:1fr}
+.form-field{display:flex;flex-direction:column;gap:5px}
+.form-field label{font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:0.06em}
+.form-field input,.form-field textarea{
+  padding:9px 12px;background:var(--surface);
+  border:1px solid var(--border-2);border-radius:6px;
+  font-family:var(--font-sans);font-size:14px;color:var(--text);
+  transition:all 0.15s;
+}
+.form-field textarea{resize:vertical;min-height:70px}
+.form-field input:focus,.form-field textarea:focus{
+  outline:none;border-color:var(--pa-blue);box-shadow:0 0 0 3px rgba(26,77,181,0.10);
+}
+
+.tag-list{display:flex;flex-direction:column;gap:8px}
+.tag-row{
+  display:grid;grid-template-columns:80px 1fr 2fr;gap:10px;align-items:center;
+  padding:8px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;
+}
+.tag-row .addr{
+  font-family:var(--font-mono);font-weight:600;font-size:13px;
+  color:var(--pa-blue-dark);background:#fff;padding:4px 8px;border-radius:4px;
+  text-align:center;border:1px solid var(--border);
+}
+.tag-row .info{font-size:12px;color:var(--text-2);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag-row input{
+  padding:7px 10px;background:#fff;border:1px solid var(--border-2);
+  border-radius:4px;font-family:var(--font-mono);font-size:13px;
+  font-weight:500;color:var(--text);text-transform:uppercase;
+}
+.tag-row input:focus{outline:none;border-color:var(--pa-blue);box-shadow:0 0 0 2px rgba(26,77,181,0.10)}
+
+.btn{
+  font-family:var(--font-sans);font-size:13px;font-weight:500;
+  padding:9px 16px;border-radius:6px;cursor:pointer;border:1px solid transparent;
+  transition:all 0.15s;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;
+}
+.btn-primary{background:var(--pa-blue);color:#fff;border-color:var(--pa-blue)}
+.btn-primary:hover{background:var(--pa-blue-dark);border-color:var(--pa-blue-dark);box-shadow:0 2px 8px rgba(26,77,181,0.28)}
+.btn-teal{background:var(--pa-teal);color:#0f2f78;border-color:var(--pa-teal);font-weight:600}
+.btn-teal:hover{background:var(--pa-teal-dim);border-color:var(--pa-teal-dim)}
+.btn-ghost{background:transparent;color:var(--text);border-color:var(--border-2)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--pa-blue);color:var(--pa-blue-dark)}
+.btn.btn-sm{padding:4px 10px;font-size:9pt}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+.loading{padding:60px 24px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.scanner{position:relative;width:240px;height:140px;margin:0 auto 24px;border:1px solid var(--border-2);background:var(--bg);overflow:hidden;border-radius:6px}
+.scan-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(26,77,181,0.1) 1px,transparent 1px),linear-gradient(90deg,rgba(26,77,181,0.1) 1px,transparent 1px);background-size:20px 20px}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--pa-teal),transparent);box-shadow:0 0 12px var(--pa-teal);animation:scan 1.8s ease-in-out infinite}
+@keyframes scan{0%,100%{top:0}50%{top:138px}}
+.loading h3{font-size:17px;font-weight:600;margin-bottom:6px}
+.loading p{color:var(--muted);font-size:13px}
+
+.err-box{padding:24px;text-align:center;background:#fef4f4;border:1px solid #f5c6c6;border-radius:var(--radius)}
+.err-box strong{display:block;color:var(--crit);font-size:15px;margin-bottom:6px}
+.err-box p{color:var(--text-2);font-size:13px;margin-bottom:14px;font-family:var(--font-mono)}
+
+.restore-bar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:10px 14px;margin-bottom:14px;
+  background:#fffbe6;border:1px solid #ffe082;border-left:4px solid var(--pa-yellow);
+  border-radius:6px;font-size:9.5pt;color:#5d4900;
+}
+
+.report-toolbar{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:12px 16px;
+  box-shadow:var(--shadow);gap:10px;flex-wrap:wrap;
+}
+.report-toolbar-info{font-size:12px;color:var(--muted);font-family:var(--font-mono)}
+
+.tag-search{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 12px;background:var(--surface-2);
+  border:1px solid var(--border);border-radius:6px;
+  margin-bottom:12px;
+}
+.tag-search .search-icon{color:var(--muted);flex-shrink:0}
+.tag-search input{
+  flex:1;border:none;background:transparent;
+  font-family:var(--font-sans);font-size:14px;color:var(--text);
+}
+.tag-search input:focus{outline:none}
+
+.app-footer{padding:20px;text-align:center;font-size:11px;color:var(--muted);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em}
+.hidden{display:none!important}
+
+/* ====================== DASHBOARD ====================== */
+.dash-score-row{
+  display:flex;align-items:center;gap:24px;
+  margin-bottom:24px;padding-bottom:20px;
+  border-bottom:1px solid var(--border);
+}
+.dash-score-ring{width:120px;height:120px;flex-shrink:0}
+.score-svg{width:100%;height:100%}
+.dash-verdict{display:flex;flex-direction:column;gap:4px}
+.dash-verdict-label{font-size:22px;font-weight:700;letter-spacing:-0.02em}
+.dash-verdict-sub{font-size:13px;color:var(--text-2);line-height:1.5;max-width:500px}
+.dash-kpis{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:12px;margin-bottom:20px;
+}
+.dash-kpi{
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px;text-align:center;
+}
+.dash-kpi .kpi-val{font-size:26px;font-weight:700;font-family:var(--font-mono);line-height:1.2}
+.dash-kpi .kpi-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-top:4px}
+.dash-kpi.ok .kpi-val{color:var(--good)}
+.dash-kpi.warn .kpi-val{color:var(--warn)}
+.dash-kpi.crit .kpi-val{color:var(--crit)}
+.dash-alerts{display:flex;flex-direction:column;gap:8px}
+.dash-alert{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:10px 14px;border-radius:6px;font-size:13px;line-height:1.5;
+}
+.dash-alert.crit{background:var(--crit-light);border-left:3px solid var(--crit)}
+.dash-alert.warn{background:var(--warn-light);border-left:3px solid var(--warn)}
+.dash-alert.ok{background:var(--good-light);border-left:3px solid var(--good)}
+.dash-alert .alert-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+
+/* ====================== TOAST ====================== */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:9999;
+  background:var(--pa-blue-dark);color:#fff;
+  padding:12px 20px;border-radius:var(--radius);
+  font-size:13px;font-weight:500;
+  box-shadow:0 8px 24px rgba(0,0,0,0.18);
+  transform:translateY(80px);opacity:0;
+  transition:all 0.3s cubic-bezier(0.4,0,0.2,1);pointer-events:none;
+}
+.toast.show{transform:translateY(0);opacity:1;pointer-events:auto}
+.toast.error{background:var(--crit)}
+
+/* ====================== OFFLINE BAR ====================== */
+.offline-bar{
+  display:none;background:#1a2060;color:#fff;
+  text-align:center;padding:6px 14px;font-size:12px;font-weight:500;
+  letter-spacing:0.03em;gap:8px;align-items:center;justify-content:center;
+}
+.offline-bar.visible{display:flex}
+.offline-dot{width:8px;height:8px;border-radius:50%;background:var(--pa-teal);flex-shrink:0}
+
+/* ====================== INSTALL BANNER ====================== */
+.install-banner{
+  display:none;
+  background:linear-gradient(135deg,var(--pa-blue-dark),var(--pa-blue));
+  color:#fff;padding:14px 20px;
+  align-items:center;gap:14px;justify-content:space-between;flex-wrap:wrap;
+}
+.install-banner.visible{display:flex}
+.install-banner-text{font-size:13px;font-weight:500;line-height:1.4}
+.install-banner-actions{display:flex;gap:8px;flex-shrink:0}
+.install-btn{
+  background:var(--pa-teal);color:#0f2f78;border:none;
+  padding:8px 16px;border-radius:6px;
+  font-family:var(--font-sans);font-size:13px;font-weight:700;cursor:pointer;
+}
+.install-dismiss{
+  background:rgba(255,255,255,0.15);color:#fff;
+  border:1px solid rgba(255,255,255,0.3);padding:8px 14px;
+  border-radius:6px;font-family:var(--font-sans);font-size:13px;font-weight:500;cursor:pointer;
+}
+
+/* ============================================================
+   RELATÓRIO — estilo ProfiTrace · PA Edition
+   ============================================================ */
+.pt-doc{font-family:var(--font-doc);color:#000}
+.pt-page{
+  background:#fff;width:21cm;min-height:29.7cm;
+  margin:14px auto;padding:1.4cm 1.8cm;
+  box-shadow:0 4px 16px rgba(0,0,0,0.08);
+  display:flex;flex-direction:column;
+  font-size:10pt;line-height:1.4;color:#000;position:relative;
+}
+.pt-page-head{
+  display:flex;align-items:center;gap:14px;
+  border-bottom:2px solid var(--pa-blue);
+  padding-bottom:10px;margin-bottom:18px;
+}
+.pt-logo{
+  width:54px;height:54px;flex-shrink:0;
+  background:var(--pa-blue);border-radius:50%;
+  display:grid;place-items:center;position:relative;
+}
+.pt-logo::after{
+  content:'';position:absolute;top:-3px;right:-3px;
+  width:18px;height:18px;background:var(--pa-teal);
+  border-radius:50%;border:2px solid #fff;
+}
+.pt-logo svg{display:block}
+.pt-page-title{flex:1;text-align:right}
+.pt-page-title h1{font-size:14pt;font-weight:bold;color:#000;line-height:1.2;letter-spacing:-0.01em}
+.pt-page-title small{font-size:8pt;color:#555;display:inline-block;margin-top:2px}
+.pt-page-title small b{color:var(--pa-blue);font-weight:600}
+.pt-page-body{flex:1}
+.pt-page-foot{
+  margin-top:auto;padding-top:8px;border-top:1px solid #999;
+  display:flex;justify-content:space-between;align-items:flex-end;
+  font-size:7.5pt;color:#444;gap:12px;
+}
+.pt-page-foot-left{display:flex;flex-direction:column;gap:2px}
+.pt-page-foot-disclaimer{font-size:7pt;color:#666;margin-bottom:2px}
+.pt-sig-row{display:flex;gap:10px;align-items:flex-end}
+.pt-sig-cell{display:flex;flex-direction:column;min-width:90px}
+.pt-sig-cell label{font-size:6.5pt;color:#666;margin-bottom:1px}
+.pt-sig-cell .line{border-bottom:1px solid #555;height:14px;font-size:8pt;font-weight:500;color:#000;padding:0 2px}
+.pt-page-foot-right{text-align:right;font-size:8pt;display:flex;flex-direction:column;gap:2px}
+.pt-page-num{font-weight:500;color:#222}
+
+.pt-section{margin-bottom:18px}
+.pt-section h2{font-size:13pt;font-weight:bold;color:#000;margin-bottom:10px}
+.pt-section h3{font-size:11pt;font-weight:bold;color:#000;margin:14px 0 8px}
+.pt-section h4{font-size:10pt;font-weight:bold;color:#000;margin:10px 0 6px}
+
+.pt-fields{display:grid;grid-template-columns:180px 1fr;row-gap:5px;column-gap:8px;font-size:10pt}
+.pt-fields .lbl{color:#000}
+.pt-fields .val{color:#000;font-weight:500}
+
+.pt-box{border:1px solid #888;padding:10px 14px;min-height:60px;font-size:9.5pt;margin-top:4px}
+.pt-box-caption{font-size:8pt;color:#666;text-align:center;font-style:italic;margin-top:4px}
+
+.pt-conclusion{border:1px solid #888;padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+.pt-check-row{display:flex;align-items:center;gap:10px;font-size:10pt}
+.pt-check{width:18px;height:18px;border:1.5px solid #333;display:inline-grid;place-items:center;font-weight:bold;font-size:13pt;line-height:1;flex-shrink:0}
+.pt-check.checked{color:var(--crit);border-color:var(--crit)}
+.pt-check-row.active{font-weight:bold}
+
+.pt-subjects{display:grid;grid-template-columns:1fr auto;row-gap:10px;column-gap:18px;font-size:10pt}
+.pt-subj{display:contents}
+.pt-subj .desc{display:flex;flex-direction:column}
+.pt-subj .desc .note{font-size:8.5pt;color:#666;font-style:italic;margin-top:2px;line-height:1.3}
+.pt-subj .res{display:flex;align-items:center;gap:8px;white-space:nowrap;justify-content:flex-end}
+.pt-subj .icon{font-size:14pt;font-weight:bold}
+.pt-subj .icon.ok{color:#1a9e50}
+.pt-subj .icon.fail{color:var(--crit)}
+
+.pt-table{width:100%;border-collapse:collapse;font-size:9pt;font-family:var(--font-doc)}
+.pt-table th{text-align:left;padding:5px 8px;border-bottom:2px solid #333;font-weight:bold;color:#000}
+.pt-table td{padding:4px 8px;border-bottom:1px solid #ccc;color:#000}
+.pt-table .num{text-align:right;font-variant-numeric:tabular-nums}
+.pt-table .center{text-align:center}
+
+.pt-livelist{border-collapse:collapse;width:100%;table-layout:fixed}
+.pt-livelist th,.pt-livelist td{text-align:center;border:2px solid #fff;padding:5px 2px;font-size:8.5pt;height:28px;overflow:hidden}
+.pt-livelist thead th{background:#fff;color:#888;font-weight:normal;font-size:8pt;border:none}
+.pt-livelist .row-h{background:#fff;color:#888;font-weight:normal;font-size:8pt;border:none;width:32px}
+.pt-livelist .empty{background:#fff;color:#bbb;font-size:8pt}
+.pt-livelist .master{background:#a3d8a8;color:#000;font-weight:bold}
+.pt-livelist .slave-ok{background:#71c14a;color:#000;font-weight:600;font-size:7pt;letter-spacing:-0.02em}
+.pt-livelist .slave-warn{background:#f5d24a;color:#000;font-weight:bold}
+.pt-livelist .slave-crit{background:#e95f5f;color:#000;font-weight:bold}
+.pt-livelist .reserved{background:#dadada;color:#888}
+.pt-livelist .invisible{visibility:hidden}
+
+.pt-legend{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;margin-top:14px;font-size:9pt}
+.pt-legend .lg-item{display:flex;align-items:center;gap:8px}
+.pt-legend .swatch{display:inline-block;width:32px;height:14px;border:1px solid #999;flex-shrink:0}
+.pt-legend .swatch-num{display:inline-grid;place-items:center;width:32px;height:18px;border:1px solid #999;font-weight:bold;font-size:9pt}
+
+.pt-bargraph{margin-bottom:20px}
+.pt-bargraph-title{font-size:10pt;font-weight:bold;margin-bottom:4px}
+.pt-bargraph-sub{font-size:9pt;margin-bottom:8px;color:#222}
+.pt-bargraph-svg-wrap{background:#fafafa;border:1px solid #d0d0d0;padding:6px}
+.pt-bargraph svg{display:block;width:100%;height:auto}
+
+.pt-device{margin-bottom:14px;page-break-inside:avoid}
+.pt-device-head{
+  background:#f0f0f0;border-left:4px solid var(--pa-blue);
+  padding:6px 12px;margin-bottom:8px;
+  display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.pt-device-head.warn{border-left-color:#e07b00}
+.pt-device-head.crit{border-left-color:var(--crit)}
+.pt-device-head .h-left{display:flex;align-items:baseline;gap:14px}
+.pt-device-head .h-addr{font-weight:bold;font-size:11pt;color:#000}
+.pt-device-head .h-tag{font-weight:600;font-size:10pt;color:var(--pa-blue-dark)}
+.pt-device-head .h-pill{font-size:8pt;font-weight:bold;padding:2px 8px;border-radius:9px;text-transform:uppercase;letter-spacing:0.04em}
+.pt-device-head .h-pill.ok{background:#b8edd0;color:#0f6333}
+.pt-device-head .h-pill.warn{background:var(--warn-light);color:var(--warn-dark)}
+.pt-device-head .h-pill.crit{background:var(--crit-light);color:var(--crit-dark)}
+
+.pt-device-fields{display:grid;grid-template-columns:180px 1fr;row-gap:3px;font-size:9.5pt;padding:0 4px}
+.pt-device-fields .lbl{color:#222}
+.pt-device-fields .val{color:#000;font-weight:500}
+
+.pt-recommendations{
+  background:#fffce6;border:1px solid #f0e090;
+  border-left:4px solid var(--pa-yellow);
+  padding:14px 18px 14px 28px;font-size:10pt;
+}
+.pt-recommendations ol{margin:0;padding-left:14px}
+.pt-recommendations li{padding:5px 0;color:#000;line-height:1.5}
+.pt-recommendations li strong{color:var(--pa-blue-dark)}
+.pt-no-issues{text-align:center;padding:14px;background:#e6f0ff;border:1px solid #b0c8f0;color:var(--pa-blue-dark);font-weight:500;font-size:10pt}
+
+/* PA-specific highlight box */
+.pa-info-box{
+  background:#e8efff;border:1px solid #b0c4f0;border-left:4px solid var(--pa-blue);
+  padding:10px 14px;font-size:9pt;margin-top:8px;border-radius:0 4px 4px 0;
+}
+
+/* Mobile report scaling */
+@media screen and (max-width:860px){
+  #tab-report{overflow-x:hidden}
+  .pt-doc{width:100%;overflow-x:auto;padding:0 4px}
+  .pt-page{
+    width:21cm!important;transform-origin:top left;
+    transform:scale(var(--bp-page-scale,0.42));
+    margin-bottom:calc((29.7cm * var(--bp-page-scale,0.42)) - 29.7cm + 8px)!important;
+  }
+}
+
+@media print{
+  body,html{background:#fff!important}
+  .app-header,.shell>:not(#workspace),.tabs-bar,.file-bar,.report-toolbar,
+  .app-footer,.offline-bar,.install-banner,.loading,.err-box,.tab-content:not(#tab-report),
+  .toast{display:none!important}
+  #tab-report{display:block!important}
+  #reportDoc{display:block!important}
+  .pt-page{
+    box-shadow:none!important;margin:0!important;
+    width:21cm!important;min-height:29.7cm!important;
+    padding:1.4cm 1.8cm!important;
+    page-break-after:always!important;
+    break-after:page!important;
+  }
+  .pt-page:last-child{page-break-after:auto!important;break-after:auto!important}
+  .pt-table,.pt-bargraph svg,.pt-device-head,.pt-livelist td,
+  .pt-livelist th,.pt-recommendations,.pt-no-issues,.pt-logo,.pa-info-box{
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+    color-adjust:exact!important;
+  }
+  @page{size:A4;margin:1.4cm 1.6cm}
+}
+</style>
+</head>
+<body>
+
+<div class="offline-bar" id="offlineBar">
+  <span class="offline-dot"></span>
+  <span>Modo offline — todos os recursos estão em cache</span>
+</div>
+
+<div class="install-banner" id="installBanner">
+  <div class="install-banner-text">
+    <strong>Instalar BIO·PA</strong> no dispositivo para usar offline em campo.
+  </div>
+  <div class="install-banner-actions">
+    <button class="install-btn" id="installBtn">Instalar</button>
+    <button class="install-dismiss" id="installDismiss">Agora não</button>
+  </div>
+</div>
+
+<header class="app-header">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+        <!-- PA waveform symbol: Manchester encoding wave -->
+        <rect x="2" y="10" width="4" height="4" fill="#fff" rx="0.5"/>
+        <rect x="6" y="6" width="4" height="8" fill="#fff" rx="0.5" opacity=".8"/>
+        <rect x="10" y="10" width="4" height="4" fill="#fff" rx="0.5"/>
+        <rect x="14" y="6" width="4" height="8" fill="#fff" rx="0.5" opacity=".8"/>
+        <rect x="18" y="10" width="4" height="4" fill="#fff" rx="0.5"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <h1>BIO·PA</h1>
+      <p>PROFIBUS PA · IEC 61158-2 MBP</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="header-status">
+      <span id="statusLed" class="status-led"></span>
+      <span id="statusText">Pronto</span>
+    </div>
+  </div>
+</header>
+
+<main class="shell">
+  <section id="dropzone" class="dropzone">
+    <input type="file" id="fileInput" accept="application/pdf,.pdf,.ptn" style="display:none">
+    <span class="pa-badge">PROFIBUS PA</span>
+    <div class="dropzone-icon">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 3v5h5M5 21V3h9l5 5v13z"/><path d="M9 13h6M9 17h6"/>
+      </svg>
+    </div>
+    <h2>Envie o arquivo do ProfiTrace</h2>
+    <p>Arraste o PDF ou .ptn aqui, ou clique para selecionar</p>
+    <span class="dropzone-hint">PDF · PTN · gerado pelo ProfiTrace · 31.25 kbps MBP</span>
+  </section>
+
+  <section id="workspace" class="workspace hidden">
+    <div class="file-bar">
+      <div class="file-info">
+        <span class="file-pdf-tag" id="filePdfTag">PDF</span>
+        <div>
+          <strong id="fileName">arquivo.pdf</strong>
+          <span class="meta" id="fileMeta">— KB</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" id="btnClearHistory" title="Apaga todas as tags e metadados salvos">🧹 Limpar histórico</button>
+        <button class="btn btn-ghost" id="btnReset">Novo arquivo</button>
+      </div>
+    </div>
+
+    <div id="loadingBox" class="loading hidden">
+      <div class="scanner"><div class="scan-grid"></div><div class="scan-line"></div></div>
+      <h3 id="loadingTitle">Analisando...</h3>
+      <p id="loadingDesc">Extraindo dados</p>
+    </div>
+
+    <div id="errBox" class="err-box hidden">
+      <strong>Não foi possível processar o arquivo</strong>
+      <p id="errMsg"></p>
+      <button class="btn btn-primary" id="btnRetry">Tentar novamente</button>
+    </div>
+
+    <div id="tabsBar" class="tabs-bar hidden">
+      <button class="tab-btn active" data-tab="dashboard">Resumo</button>
+      <button class="tab-btn" data-tab="setup">Identificação</button>
+      <button class="tab-btn" data-tab="tags">TAGs <span class="num" id="tagCount">0</span></button>
+      <button class="tab-btn" data-tab="report">Relatório</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard" class="panel tab-content">
+      <div class="panel-head">
+        <h3>Resumo da análise — PROFIBUS PA</h3>
+        <span class="desc" id="dashNetworkName">—</span>
+      </div>
+      <div class="panel-body">
+        <div class="dash-score-row">
+          <div class="dash-score-ring">
+            <svg viewBox="0 0 120 120" class="score-svg">
+              <circle cx="60" cy="60" r="52" fill="none" stroke="#e8edf7" stroke-width="10"/>
+              <circle cx="60" cy="60" r="52" fill="none" stroke-width="10" stroke-linecap="round"
+                      id="dashScoreArc" stroke="#1a4db5"
+                      stroke-dasharray="327" stroke-dashoffset="327"
+                      transform="rotate(-90 60 60)"/>
+              <text x="60" y="54" text-anchor="middle" font-size="32" font-weight="700" fill="currentColor" id="dashScoreNum">—</text>
+              <text x="60" y="72" text-anchor="middle" font-size="11" fill="#7a83a8" font-weight="500">SAÚDE</text>
+            </svg>
+          </div>
+          <div class="dash-verdict">
+            <span class="dash-verdict-label" id="dashVerdictLabel">Analisando...</span>
+            <span class="dash-verdict-sub" id="dashVerdictSub">Carregue um PDF para ver o resultado</span>
+          </div>
+        </div>
+        <div class="dash-kpis" id="dashKpis"></div>
+        <div class="dash-alerts" id="dashAlerts"></div>
+      </div>
+    </div>
+
+    <!-- IDENTIFICAÇÃO -->
+    <div id="tab-setup" class="panel tab-content hidden">
+      <div class="panel-head">
+        <h3>Identificação do trabalho</h3>
+        <span class="desc">Dados que aparecem no relatório</span>
+      </div>
+      <div class="panel-body">
+        <div id="metaRestoreBar" class="restore-bar hidden">
+          <span>📋 Há metadados salvos para este arquivo</span>
+          <div class="btn-row">
+            <button class="btn btn-sm" id="btnRestoreMeta">Restaurar</button>
+            <button class="btn btn-sm btn-ghost" id="btnIgnoreMeta">Ignorar</button>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-field"><label>Cliente / Unidade</label><input type="text" id="f-cliente" placeholder="Ex: Petrobras REDUC"></div>
+          <div class="form-field"><label>Planta / Setor</label><input type="text" id="f-planta" placeholder="Ex: Destilação"></div>
+          <div class="form-field"><label>Área / Sistema</label><input type="text" id="f-area" placeholder="Ex: Loop PA-03"></div>
+          <div class="form-field"><label>Técnico responsável</label><input type="text" id="f-tecnico" placeholder="Seu nome"></div>
+          <div class="form-field"><label>Função / Cargo</label><input type="text" id="f-cargo" placeholder="Técnico de instrumentação"></div>
+          <div class="form-field"><label>Data do relatório</label><input type="date" id="f-data"></div>
+        </div>
+        <div class="form-grid full" style="margin-top:14px">
+          <div class="form-field"><label>Comentários / Observações</label><textarea id="f-comentarios" placeholder="Texto livre que aparece na seção 5 do relatório"></textarea></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAGS -->
+    <div id="tab-tags" class="panel tab-content hidden">
+      <div class="panel-head">
+        <h3>Mapeamento TAG ↔ Endereço</h3>
+        <span class="desc">Identifique cada instrumento PA pelo TAG</span>
+      </div>
+      <div class="panel-body">
+        <div id="tagsRestoreBar" class="restore-bar hidden">
+          <span>🏷️ Há TAGs salvas para este arquivo</span>
+          <div class="btn-row">
+            <button class="btn btn-sm" id="btnRestoreTags">Restaurar TAGs</button>
+            <button class="btn btn-sm btn-ghost" id="btnIgnoreTags">Ignorar</button>
+          </div>
+        </div>
+        <div class="tag-search">
+          <span class="search-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </span>
+          <input type="text" id="tagSearchInput" placeholder="Filtrar por endereço, fabricante ou TAG...">
+        </div>
+        <div id="tagList" class="tag-list"></div>
+      </div>
+    </div>
+
+    <!-- RELATÓRIO -->
+    <div id="tab-report" class="tab-content hidden">
+      <div class="report-toolbar">
+        <span class="report-toolbar-info" id="reportInfo">Pronto para download</span>
+        <div class="btn-row">
+          <button class="btn btn-ghost" id="btnRefresh">↻ Atualizar</button>
+          <button class="btn btn-ghost" id="btnCsv">⬇ CSV</button>
+          <button class="btn btn-teal" id="btnPdf">⬇ Baixar PDF</button>
+          <button class="btn btn-primary" id="btnWord">⬇ Baixar Word</button>
+        </div>
+      </div>
+      <article id="reportDoc" class="pt-doc"></article>
+    </div>
+  </section>
+</main>
+
+<footer class="app-footer">
+  BIO·PA v1.0 · PROFIBUS PA · IEC 61158-2 MBP · 31.25 kbps · Dados processados localmente · offline-ready
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+</script>
+
+<script>
+/* ============================================================
+   STATE
+   ============================================================ */
+const state = {
+  file: null,
+  data: null,
+  tags: {},
+  meta: { cliente:'', planta:'', area:'', tecnico:'', cargo:'', data:'', comentarios:'' }
+};
+
+/* ============================================================
+   LIMITES PA — IEC 61158-2 MBP
+   Sinal em mV peak-to-peak. PA NUNCA tem idle voltage.
+   Referência: PTO Whitepaper 2005, SMAR, Samson, IEC 61158-2
+   ============================================================ */
+const PA_SIGNAL = { good_min:640, warn_min:350, high_max:1000, term_missing_min:1500 };
+const PA_JITTER = { good_max:0.8, warn_max:1.5 };
+
+function signalQuality(mv) {
+  if (mv == null) return 'unknown';
+  if (mv >= PA_SIGNAL.term_missing_min) return 'crit'; // terminador ausente
+  if (mv >= PA_SIGNAL.good_min) return 'ok';
+  if (mv >= PA_SIGNAL.warn_min) return 'warn';
+  return 'crit';
+}
+function jitterQuality(us) {
+  if (us == null) return 'unknown';
+  if (us <= PA_JITTER.good_max) return 'ok';
+  if (us <= PA_JITTER.warn_max) return 'warn';
+  return 'crit';
+}
+function detectMissingTerminator(d) {
+  if (!d || !d.signals) return [];
+  return Object.entries(d.signals)
+    .filter(([,mv]) => mv >= PA_SIGNAL.term_missing_min)
+    .map(([addr, mv]) => ({
+      addr: parseInt(addr,10), value: mv, unit:'mV',
+      source:'PTO Whitepaper 2005 — sinal PA anormalmente alto (>1500 mV pp)'
+    }));
+}
+
+/* ============================================================
+   ELEMS
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const dropzone    = $('#dropzone');
+const fileInput   = $('#fileInput');
+const workspace   = $('#workspace');
+const fileNameEl  = $('#fileName');
+const fileMetaEl  = $('#fileMeta');
+const loadingBox  = $('#loadingBox');
+const loadingTitle= $('#loadingTitle');
+const loadingDesc = $('#loadingDesc');
+const errBox      = $('#errBox');
+const errMsg      = $('#errMsg');
+const tabsBar     = $('#tabsBar');
+const tagListEl   = $('#tagList');
+const tagCountEl  = $('#tagCount');
+const reportDoc   = $('#reportDoc');
+const statusLed   = $('#statusLed');
+const statusText  = $('#statusText');
+const meta_inputs = {
+  cliente:($('#f-cliente')), planta:($('#f-planta')), area:($('#f-area')),
+  tecnico:($('#f-tecnico')), cargo:($('#f-cargo')), data:($('#f-data')),
+  comentarios:($('#f-comentarios'))
+};
+
+function setStatus(kind,txt){ statusLed.className='status-led '+(kind||''); statusText.textContent=txt; }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtDate(iso){ if(!iso)return'—'; try{const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`;}catch{return iso;} }
+
+/* ============================================================
+   DROPZONE
+   ============================================================ */
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault(); dropzone.classList.remove('over');
+  const f = e.dataTransfer.files[0]; if(f) handleFile(f);
+});
+fileInput.addEventListener('change', e => { const f=e.target.files[0]; if(f) handleFile(f); });
+
+/* ============================================================
+   RESET
+   ============================================================ */
+function resetCompleto(opts={}) {
+  state.data = null; state.tags = {};
+  if (!opts.keepFileInput) { state.file = null; fileInput.value = ''; }
+  state.meta = { cliente:'', planta:'', area:'', tecnico:'', cargo:'', data:'', comentarios:'' };
+  dropzone.classList.remove('hidden');
+  workspace.classList.add('hidden');
+  loadingBox.classList.add('hidden');
+  errBox.classList.add('hidden');
+  tabsBar.classList.add('hidden');
+  $$('.tab-content').forEach(el => el.classList.add('hidden'));
+  reportDoc.innerHTML = '';
+  tagListEl.innerHTML = '';
+  tagCountEl.textContent = '0';
+  Object.values(meta_inputs).forEach(el => { if(el) el.value=''; });
+  loadMeta();
+  setStatus('','Pronto');
+}
+
+$('#btnReset').addEventListener('click', () => resetCompleto());
+$('#btnRetry').addEventListener('click', () => { if(state.file) handleFile(state.file); });
+
+/* ============================================================
+   TABS
+   ============================================================ */
+$$('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    $$('.tab-btn').forEach(b => b.classList.toggle('active', b===btn));
+    $$('.tab-content').forEach(el => el.classList.toggle('hidden', el.id !== 'tab-'+tab));
+    if (tab === 'report') {
+      renderReport();
+      requestAnimationFrame(() => {
+        const vw = document.getElementById('tab-report').clientWidth || window.innerWidth;
+        const scale = Math.min(1,(vw-16)/(21*37.795));
+        document.documentElement.style.setProperty('--bp-page-scale',scale.toFixed(3));
+      });
+    }
+    if (tab === 'dashboard') renderDashboard();
+  });
+});
+
+/* ============================================================
+   LIMPAR HISTÓRICO
+   ============================================================ */
+function limparHistorico(){
+  try{
+    const keys=[];
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k&&(k.startsWith('bpa_meta_')||k.startsWith('bpa_tags_'))) keys.push(k);
+    }
+    keys.forEach(k=>localStorage.removeItem(k));
+    return keys.length;
+  }catch{return 0;}
+}
+$('#btnClearHistory').addEventListener('click', () => {
+  const ok=confirm('Apagar todas as TAGs e metadados salvos?\n\nEsta ação não pode ser desfeita.');
+  if(!ok) return;
+  const n=limparHistorico(); resetCompleto();
+  showToast(`✓ Histórico limpo (${n} item${n===1?'':'ns'} removido${n===1?'':'s'})`);
+});
+
+/* Botões restaurar */
+$('#btnRestoreMeta')?.addEventListener('click',()=>{ if(loadMetaFromStorage()){$('#metaRestoreBar').classList.add('hidden');showToast('✓ Metadados restaurados');} });
+$('#btnIgnoreMeta')?.addEventListener('click',()=>$('#metaRestoreBar').classList.add('hidden'));
+$('#btnRestoreTags')?.addEventListener('click',()=>{ if(loadTagsFromStorage()){buildTagList();$('#tagsRestoreBar').classList.add('hidden');showToast('✓ TAGs restauradas');} });
+$('#btnIgnoreTags')?.addEventListener('click',()=>$('#tagsRestoreBar').classList.add('hidden'));
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+function showToast(msg,isError=false){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';t.className='toast';document.body.appendChild(t);}
+  t.textContent=msg; t.className='toast'+(isError?' error':'');
+  requestAnimationFrame(()=>t.classList.add('show'));
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+/* ============================================================
+   META (PERSISTÊNCIA)
+   ============================================================ */
+Object.keys(meta_inputs).forEach(k => {
+  meta_inputs[k]?.addEventListener('input', e => { state.meta[k]=e.target.value; persistMeta(); });
+});
+function persistMeta(){
+  const key=state.file?`bpa_meta_${state.file.name}`:'bpa_pa_meta';
+  try{localStorage.setItem(key,JSON.stringify(state.meta));}catch{}
+}
+function loadMeta(){
+  Object.keys(meta_inputs).forEach(k=>{ if(meta_inputs[k]) meta_inputs[k].value=state.meta[k]||''; });
+  if(!state.meta.data){
+    const iso=new Date().toISOString().slice(0,10);
+    if(meta_inputs.data) meta_inputs.data.value=iso;
+    state.meta.data=iso;
+  }
+}
+function loadMetaFromStorage(){
+  if(!state.file) return false;
+  try{
+    const s=localStorage.getItem(`bpa_meta_${state.file.name}`);
+    if(s){ state.meta={...state.meta,...JSON.parse(s)}; Object.keys(meta_inputs).forEach(k=>{if(meta_inputs[k])meta_inputs[k].value=state.meta[k]||'';}); return true; }
+  }catch{}
+  return false;
+}
+function hasMetaInStorage(){ if(!state.file)return false; try{return!!localStorage.getItem(`bpa_meta_${state.file.name}`);}catch{return false;} }
+function loadTagsFromStorage(){
+  if(!state.data)return false;
+  const key=`bpa_tags_${state.file?.name||'default'}_${state.data.network.name||'rede'}`;
+  try{ const s=localStorage.getItem(key); if(s){state.tags=JSON.parse(s);return true;} }catch{}
+  return false;
+}
+function hasTagsInStorage(){
+  if(!state.data)return false;
+  const key=`bpa_tags_${state.file?.name||'default'}_${state.data.network.name||'rede'}`;
+  try{return!!localStorage.getItem(key);}catch{return false;}
+}
+function saveTags(){
+  if(!state.data)return;
+  const key=`bpa_tags_${state.file?.name||'default'}_${state.data.network.name||'rede'}`;
+  try{localStorage.setItem(key,JSON.stringify(state.tags));}catch{}
+}
+loadMeta();
+
+/* ============================================================
+   PWA + OFFLINE
+   ============================================================ */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+window.addEventListener('online', ()=>$('#offlineBar')?.classList.remove('visible'));
+window.addEventListener('offline',()=>$('#offlineBar')?.classList.add('visible'));
+if(!navigator.onLine) $('#offlineBar')?.classList.add('visible');
+
+let _deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault(); _deferredPrompt=e;
+  $('#installBanner')?.classList.add('visible');
+});
+$('#installBtn')?.addEventListener('click',async()=>{
+  if(!_deferredPrompt)return;
+  _deferredPrompt.prompt(); const r=await _deferredPrompt.userChoice;
+  if(r.outcome==='accepted')$('#installBanner')?.classList.remove('visible');
+  _deferredPrompt=null;
+});
+$('#installDismiss')?.addEventListener('click',()=>$('#installBanner')?.classList.remove('visible'));
+
+/* ============================================================
+   PROCESSAMENTO
+   ============================================================ */
+async function handleFile(f){
+  resetCompleto({keepFileInput:true});
+  state.file=f;
+  fileNameEl.textContent=f.name;
+  fileMetaEl.textContent=(f.size/1024).toFixed(1)+' KB';
+  dropzone.classList.add('hidden');
+  workspace.classList.remove('hidden');
+  loadingBox.classList.remove('hidden');
+  errBox.classList.add('hidden');
+  tabsBar.classList.add('hidden');
+  $$('.tab-content').forEach(el=>el.classList.add('hidden'));
+  setStatus('live','Analisando');
+
+  try {
+    const fname=f.name.toLowerCase();
+    const isPtn=fname.endsWith('.ptn');
+    const isPdf=fname.endsWith('.pdf');
+    if(!isPdf&&!isPtn) throw new Error('Formato não suportado. Use PDF (.pdf) ou Network Manager (.ptn) do ProfiTrace.');
+
+    const fileTagEl=document.getElementById('filePdfTag');
+    if(fileTagEl) fileTagEl.textContent=isPtn?'PTN':'PDF';
+
+    const buf=await f.arrayBuffer();
+    let data;
+
+    if(isPtn){
+      loadingTitle.textContent='Lendo arquivo .ptn...';
+      loadingDesc.textContent='Extraindo dados do Network Manager PA';
+      data=parsePtnFile(buf);
+      loadingTitle.textContent='Processando...';
+      loadingDesc.textContent='Construindo relatório PA';
+    } else {
+      loadingTitle.textContent='Lendo o PDF...';
+      loadingDesc.textContent='Extraindo conteúdo das páginas';
+      const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+      loadingTitle.textContent='Analisando a rede PA...';
+      loadingDesc.textContent=`${pdf.numPages} páginas · Identificando dispositivos, sinal e jitter`;
+      const fullText=await extractAllText(pdf);
+      loadingTitle.textContent='Processando dados...';
+      loadingDesc.textContent='Construindo relatório PA';
+      data=parseProfiTrace(fullText);
+    }
+
+    if(data.devices.length===0 && data.addresses.length===0 && Object.keys(data.signals).length===0){
+      throw new Error('Nenhum dispositivo PROFIBUS PA foi encontrado. Verifique se é um arquivo válido do ProfiTrace com dados PA (31.25 kbps / MBP).');
+    }
+
+    // Forçar PA sempre
+    data.networkType='PA';
+    data.idleVoltages={}; // PA não tem idle voltage
+
+    // Validar unidade: sinais PA devem estar em mV (>20). Se vierem em V, avisar.
+    const sigVals=Object.values(data.signals).filter(v=>v!=null);
+    if(sigVals.length>0 && sigVals.reduce((s,v)=>s+v,0)/sigVals.length < 20){
+      showToast('⚠ Sinais detectados em Volts (esperado: mV). Verifique se o arquivo é realmente PA.', true);
+    }
+
+    state.data=data;
+    loadMeta();
+    state.tags={};
+    buildTagList();
+
+    const metaBar=$('#metaRestoreBar');
+    const tagsBar=$('#tagsRestoreBar');
+    if(metaBar) metaBar.classList.toggle('hidden',!hasMetaInStorage());
+    if(tagsBar) tagsBar.classList.toggle('hidden',!hasTagsInStorage());
+
+    loadingBox.classList.add('hidden');
+    tabsBar.classList.remove('hidden');
+    $('#tab-dashboard').classList.remove('hidden');
+    $$('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab==='dashboard'));
+    renderDashboard();
+    setStatus('done','Concluído');
+
+  } catch(e){
+    console.error(e);
+    loadingBox.classList.add('hidden');
+    errBox.classList.remove('hidden');
+    errMsg.textContent=e.message||String(e);
+    setStatus('err','Erro');
+  }
+}
+
+/* ============================================================
+   EXTRAÇÃO DE TEXTO DO PDF
+   ============================================================ */
+async function extractAllText(pdf){
+  const pages=[];
+  for(let i=1;i<=pdf.numPages;i++){
+    const p=await pdf.getPage(i);
+    const content=await p.getTextContent();
+    const items=content.items.map(it=>({s:it.str,x:it.transform[4],y:it.transform[5]}));
+    items.sort((a,b)=>(b.y-a.y)||(a.x-b.x));
+    const lines=[]; let curY=null,curLine=[];
+    for(const it of items){
+      if(curY===null||Math.abs(it.y-curY)<3){curLine.push(it);curY=it.y;}
+      else{lines.push(curLine.map(t=>t.s).join(' '));curLine=[it];curY=it.y;}
+    }
+    if(curLine.length) lines.push(curLine.map(t=>t.s).join(' '));
+    pages.push(lines.join('\n'));
+  }
+  return pages.join('\n\n=== PAGE ===\n\n');
+}
+
+/* ============================================================
+   PARSER PDF — ProfiTrace PA
+   ============================================================ */
+function parseProfiTrace(text){
+  const data={
+    network:{name:'',location:'',startTime:'',duration:'',speed:'',masters:0,slaves:0,cycleMin:'',cycleAvg:'',cycleMax:'',proficore:'',version:''},
+    networkType:'PA',deviations:false,
+    diagSlaves:[],lostSlaves:[],illegalDevices:[],retrySlaves:[],syncSlaves:[],reservedDevice:[],paramSlaves:[],
+    addresses:[],devices:[],signals:{},jitters:{},idleVoltages:{},rawText:text,
+    _confidence:{baudFound:false,serialFound:false,stationsFound:0,signalsFound:0,idleFound:0,warnings:[]}
+  };
+  const get=(re,fb='')=>{const m=text.match(re);return m?(m[1]||'').trim():fb;};
+
+  data.network.name      = get(/Network name:\s*([^\n]+)/i);
+  data.network.location  = get(/Location:\s*([^\n]+)/i);
+  data.network.startTime = get(/Measurement start time:\s*([^\n]+)/i);
+  data.network.duration  = get(/Measurement duration:\s*([^\n]+)/i);
+  data.network.speed     = get(/Transmission speed:\s*([^\n]+)/i) || '31.25 kbit/s';
+  data.network.proficore = get(/ProfiCore serial number:\s*([^\n]+)/i);
+  data.network.version   = get(/ProfiTrace version:\s*([^\n]+)/i);
+  data.network.masters   = parseInt(get(/Number of Masters:\s*(\d+)/i,'0'),10)||0;
+  data.network.slaves    = parseInt(get(/Number of slaves:\s*(\d+)/i,'0'),10)||0;
+
+  const cy=text.match(/Cycle time:\s*Min:\s*([\d.]+\s*\w+),?\s*Avg:\s*([\d.]+\s*\w+),?\s*Max:\s*([\d.]+\s*\w+)/i);
+  if(cy){data.network.cycleMin=cy[1].trim();data.network.cycleAvg=cy[2].trim();data.network.cycleMax=cy[3].trim();}
+
+  data.deviations=/\bDeviations found\b/i.test(text);
+
+  function parseList(label){
+    const esc=label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    for(const re of[new RegExp(esc+'\\s*[:\\-]?\\s*([^\\n]+)','i'),new RegExp(esc+'[\\s\\S]*?(?::|\\n)\\s*([^\\n]+)','i')]){
+      const m=text.match(re);if(!m)continue;
+      const v=m[1].trim();
+      if(/^none\b/i.test(v)||v==='—'||v==='-')return[];
+      const nums=v.split(/[,;\s]+/).map(s=>parseInt(s,10)).filter(n=>!isNaN(n)&&n>=0&&n<=126);
+      if(nums.length>0)return nums;
+    }
+    return[];
+  }
+
+  data.lostSlaves     = parseList('Slaves that have been lost at least one time');
+  data.diagSlaves     = parseList('Slaves that generated diagnostics while in data exchange');
+  data.illegalDevices = parseList('Devices that have caused illegal responses');
+  data.reservedDevice = parseList('Device found on reserved address 126');
+  data.retrySlaves    = parseList('Slaves that caused retries');
+  data.syncSlaves     = parseList('Slaves that caused syncs');
+  data.paramSlaves    = parseList('Parameters have been sent to the following slaves');
+
+  // Address list
+  const al=text.match(/Address list[\s\S]*?(?==== PAGE ===|\n\d+\s+Bar graph|\nBar graph|\nDevice details)/i);
+  if(al){
+    for(const ln of al[0].split('\n').map(l=>l.trim()).filter(Boolean)){
+      const m=ln.match(/^(\d+)\s+(\d{3,4}|-)\s+(.+?)\s{2,}(.+?)(?:\s{2,}(\S+\.GSD))?$/i)
+              ||ln.match(/^(\d+)\s+(-)\s+(-)\s+(\w+)\s+(-)?$/i);
+      if(m) data.addresses.push({addr:parseInt(m[1],10),identNo:m[2]==='-'?null:m[2],manufacturer:m[3]==='-'?null:m[3].trim(),model:m[4]==='-'?null:m[4].trim(),gsd:m[5]||null});
+    }
+  }
+
+  // Device details
+  const blocks=text.split(/Address:\s*/i).slice(1);
+  for(const blk of blocks){
+    const addrM=blk.match(/^(\d+)/); if(!addrM)continue;
+    const addr=parseInt(addrM[1],10);
+    const dev={
+      addr,
+      deviceName:(blk.match(/Device name:\s*([^\n]+)/i)||[])[1]?.trim()||'',
+      deviceType:(blk.match(/Device type:\s*([^\n]+)/i)||[])[1]?.trim()||'',
+      identNo:(blk.match(/IdentNo:\s*([^\n]+)/i)||[])[1]?.trim()||'',
+      manufacturer:(blk.match(/Manufacturer:\s*([^\n]+)/i)||[])[1]?.trim()||'',
+      model:(blk.match(/Model name:\s*([^\n]+)/i)||[])[1]?.trim()||'',
+      ioStr:(blk.match(/I\/O length \(bytes\):\s*([^\n]+)/i)||[])[1]?.trim()||'',
+      diagDx:parseInt((blk.match(/Diag count while DX:\s*(\d+)/i)||[])[1]||'0',10),
+      retryCount:parseInt((blk.match(/Total retry count:\s*(\d+)/i)||[])[1]||'0',10),
+      timesLost:parseInt((blk.match(/Times lost:\s*(\d+)/i)||[])[1]||'0',10),
+    };
+    if(!data.devices.find(d=>d.addr===addr)) data.devices.push(dev);
+  }
+
+  // PA Signal Level (mV)
+  const sigBlock=text.match(/PA signal level[s]?[\s\S]{0,3000}/i);
+  if(sigBlock){
+    const re=/\b(\d{1,3})\s+(\d{2,4})\b/g; let m;
+    while((m=re.exec(sigBlock[0]))!==null){
+      const addr=parseInt(m[1],10),val=parseFloat(m[2]);
+      if(addr>=0&&addr<=126&&val>=50&&val<=1500){
+        if(data.signals[addr]===undefined){data.signals[addr]=val;data._confidence.signalsFound++;}
+      }
+    }
+  }
+
+  // PA Jitter (µs)
+  const jitBlock=text.match(/PA[\s-]?Jitter[\s\S]{0,3000}/i);
+  if(jitBlock){
+    const re=/\b(\d{1,3})\s+(\d+\.?\d*)\b/g; let m;
+    while((m=re.exec(jitBlock[0]))!==null){
+      const addr=parseInt(m[1],10),val=parseFloat(m[2]);
+      if(addr>=0&&addr<=126&&val>=0&&val<=50){
+        if(data.jitters[addr]===undefined) data.jitters[addr]=val;
+      }
+    }
+  }
+
+  data._confidence.stationsFound=data.devices.length||data.addresses.length;
+  return data;
+}
+
+/* ============================================================
+   PARSER .PTN — PROFIBUS PA (Network Manager binary)
+   ============================================================ */
+function parsePtnFile(arrayBuffer){
+  const bytes=new Uint8Array(arrayBuffer);
+  const data={
+    network:{name:'',location:'',startTime:'',duration:'',speed:'31.25 kbit/s',masters:0,slaves:0,cycleMin:'',cycleAvg:'',cycleMax:'',proficore:'',version:''},
+    networkType:'PA',deviations:false,
+    diagSlaves:[],lostSlaves:[],illegalDevices:[],retrySlaves:[],syncSlaves:[],reservedDevice:[],paramSlaves:[],
+    addresses:[],devices:[],signals:{},jitters:{},idleVoltages:{},rawText:'',
+    _confidence:{baudFound:false,serialFound:false,stationsFound:0,signalsFound:0,idleFound:0,warnings:[]}
+  };
+
+  function readStr(pos,max){let s='';for(let i=0;i<max&&pos+i<bytes.length;i++){const b=bytes[pos+i];if(b===0)break;if(b>=32&&b<127)s+=String.fromCharCode(b);}return s;}
+  function findPat(pat){const res=[];const pb=new TextEncoder().encode(pat);outer:for(let i=0;i<bytes.length-pb.length;i++){for(let j=0;j<pb.length;j++){if(bytes[i+j]!==pb[j])continue outer;}res.push(i);}return res;}
+  function floatAfter(pos,max){let b='';for(let i=pos;i<Math.min(pos+max,bytes.length);i++)b+=String.fromCharCode(bytes[i]);const m=b.match(/(\d+\.\d{2,})/);return m?parseFloat(m[1]):null;}
+  function intAfter(pos,max){let b='';for(let i=pos;i<Math.min(pos+max,bytes.length);i++)b+=String.fromCharCode(bytes[i]);const m=b.match(/(\d+)/);return m?parseInt(m[1],10):null;}
+
+  // ProfiCore serial
+  const snPos=findPat('@CorePrms\0');
+  if(snPos.length>0){const sn=readStr(snPos[0]+'@CorePrms\0'.length+8,20).replace(/[^0-9a-zA-Z]/g,'');if(sn.length>=6){data.network.proficore=sn;data._confidence.serialFound=true;}}
+
+  // Network name
+  const netPos=findPat('@network\0');
+  const titlePos=findPat('@titlename\0');
+  if(netPos.length>0&&titlePos.length>0){
+    for(const tp of titlePos){
+      if(tp>netPos[0]&&tp<netPos[0]+200){
+        let sp=tp+'@titlename\0'.length;
+        for(let k=0;k<40;k++){const ch=bytes[sp+k];if(ch>=65&&ch<=122){const n=readStr(sp+k,40);if(n!=='Network'&&n!=='Segment'&&n.length>0)data.network.name=n;break;}}
+        break;
+      }
+    }
+  }
+
+  // PA signal level & jitter positions
+  const paSignalPos=findPat('PA signal level\0');
+  const paJitterPos=findPat('PA Jitter\0');
+  const abDiffPos  =findPat('AB Diff voltage\0');
+
+  // Station labels
+  const textView=new TextDecoder('ascii',{fatal:false}).decode(bytes);
+  const labelRe=/\((\d{1,3})\)\s*(Slave|Esclavo|Escravo|Master|Maestro|Mestre|New station|Nueva estación|Nova estação)/gi;
+  const labels=[];let lm;
+  while((lm=labelRe.exec(textView))!==null){
+    const addr=parseInt(lm[1],10);if(addr<0||addr>126)continue;
+    const rt=lm[2].toLowerCase();
+    let type=rt.includes('master')||rt.includes('maestro')||rt.includes('mestre')?'Master':rt.includes('new')||rt.includes('nueva')||rt.includes('nova')?'New station':'Slave';
+    labels.push({pos:lm.index,addr,type});
+  }
+  labels.sort((a,b)=>a.pos-b.pos);
+  // Deduplicate
+  const seen=new Set();const uniq=[];
+  for(const l of labels){const k=`${l.addr}-${l.type}`;if(!seen.has(k)){seen.add(k);uniq.push(l);}}
+  labels.length=0;labels.push(...uniq);
+
+  let masterCount=0,slaveCount=0;
+  for(let si=0;si<labels.length;si++){
+    const st=labels[si];
+    const nextPos=si+1<labels.length?labels[si+1].pos:bytes.length;
+    if(st.type==='Master'){masterCount++;continue;}
+    if(st.type==='New station'){data._confidence.warnings.push(`Endereço ${st.addr}: "New station" — sem parametrização do mestre`);if(!data.paramSlaves.includes(st.addr))data.paramSlaves.push(st.addr);}
+    slaveCount++;data._confidence.stationsFound++;
+
+    // PA signal (mV) — tentar PA signal level primeiro, depois AB Diff * 1000
+    let sigMv=null;
+    for(const p of paSignalPos){
+      if(p>st.pos&&p<nextPos){
+        const raw=floatAfter(p+'PA signal level\0'.length,80);
+        if(raw!=null&&raw>0.01&&raw<2.0){sigMv=Math.round(raw*1000*10)/10;data._confidence.signalsFound++;} // V→mV
+        else if(raw!=null&&raw>=50&&raw<=1500){sigMv=Math.round(raw*10)/10;data._confidence.signalsFound++;} // já em mV
+        break;
+      }
+    }
+    if(sigMv===null){
+      for(const p of abDiffPos){
+        if(p>st.pos&&p<nextPos){
+          const raw=floatAfter(p+'AB Diff voltage\0'.length,50);
+          if(raw!=null&&raw>0.05&&raw<12.0){sigMv=Math.round(raw*1000*10)/10;data._confidence.signalsFound++;} // V→mV
+          break;
+        }
+      }
+    }
+    if(sigMv!=null) data.signals[st.addr]=sigMv;
+
+    // PA Jitter
+    for(const p of paJitterPos){
+      if(p>st.pos&&p<nextPos){
+        const raw=floatAfter(p+'PA Jitter\0'.length,80);
+        if(raw!=null&&raw>=0&&raw<=50) data.jitters[st.addr]=Math.round(raw*1000)/1000;
+        break;
+      }
+    }
+
+    data.devices.push({
+      addr:st.addr,deviceType:'Slave',manufacturer:'',model:'',
+      diagDx:0,timesLost:0,retryCount:0,abDiffVoltage:null,idleVoltageAvg:null
+    });
+    data.addresses.push({addr:st.addr,identNo:'',manufacturer:'',model:'',revision:''});
+  }
+
+  data.network.slaves=slaveCount;
+  data.network.masters=masterCount||1;
+  if(!data.network.name)data.network.name='Rede PROFIBUS PA';
+  return data;
+}
+
+/* ============================================================
+   TAGS
+   ============================================================ */
+function buildTagList(){
+  if(!state.data)return;
+  const addrSet=new Set();
+  state.data.devices.forEach(d=>addrSet.add(d.addr));
+  state.data.addresses.forEach(a=>addrSet.add(a.addr));
+  Object.keys(state.data.signals).forEach(a=>addrSet.add(parseInt(a,10)));
+  const addrs=Array.from(addrSet).sort((a,b)=>a-b);
+  tagListEl.innerHTML='';
+  for(const addr of addrs){
+    const dev=state.data.devices.find(d=>d.addr===addr)||{};
+    const ai =state.data.addresses.find(a=>a.addr===addr)||{};
+    const info=[ai.manufacturer||dev.manufacturer||'',ai.model||dev.model||dev.deviceType||''].filter(Boolean).join(' · ');
+    const row=document.createElement('div');
+    row.className='tag-row';
+    row.innerHTML=`<span class="addr">${addr}</span><span class="info">${esc(info)||'—'}</span><input type="text" placeholder="Ex: PT-201A" data-addr="${addr}" value="${esc(state.tags[addr]||'')}">`;
+    const inp=row.querySelector('input');
+    inp.addEventListener('input',e=>{
+      const a=parseInt(e.target.dataset.addr,10),v=e.target.value.trim().toUpperCase();
+      e.target.value=v;
+      if(v)state.tags[a]=v; else delete state.tags[a];
+      saveTags(); tagCountEl.textContent=Object.keys(state.tags).length;
+    });
+    tagListEl.appendChild(row);
+  }
+  tagCountEl.textContent=Object.keys(state.tags).length;
+}
+
+document.addEventListener('input',e=>{
+  if(e.target.id!=='tagSearchInput')return;
+  const q=e.target.value.toLowerCase().trim();
+  tagListEl.querySelectorAll('.tag-row').forEach(r=>{r.style.display=!q||r.textContent.toLowerCase().includes(q)?'':'none';});
+});
+
+/* ============================================================
+   DASHBOARD PA
+   ============================================================ */
+function renderDashboard(){
+  if(!state.data)return;
+  const d=state.data;
+  const sigEntries=Object.entries(d.signals).map(([a,v])=>({addr:parseInt(a,10),v,q:signalQuality(v)}));
+  const jitEntries=Object.entries(d.jitters).map(([a,v])=>({addr:parseInt(a,10),v,q:jitterQuality(v)}));
+
+  // Score
+  let score=100;
+  const critSig=sigEntries.filter(s=>s.q==='crit').length;
+  const warnSig=sigEntries.filter(s=>s.q==='warn').length;
+  const critJit=jitEntries.filter(j=>j.q==='crit').length;
+  const warnJit=jitEntries.filter(j=>j.q==='warn').length;
+  const totalLost=d.devices.reduce((s,x)=>s+(x.timesLost||0),0);
+  const totalDiag=d.devices.reduce((s,x)=>s+(x.diagDx||0),0);
+  const totalRetries=d.devices.reduce((s,x)=>s+(x.retryCount||0),0);
+  score -= critSig*15; score -= warnSig*5;
+  score -= critJit*12; score -= warnJit*4;
+  score -= totalLost*20; score -= totalRetries*3; score -= totalDiag*5;
+  if(d.lostSlaves.length>0)score-=10;
+  if(d.illegalDevices.length>0)score-=15;
+  score=Math.max(0,Math.min(100,score));
+  if(sigEntries.length===0&&jitEntries.length===0&&d.devices.length>0)score=Math.min(score,50);
+
+  const arc=document.getElementById('dashScoreArc');
+  const numEl=document.getElementById('dashScoreNum');
+  const circ=2*Math.PI*52;
+  arc.style.stroke=score>=75?'#1a4db5':score>=50?'#e07b00':'#d02828';
+  arc.style.transition='stroke-dashoffset 1s ease-out';
+  requestAnimationFrame(()=>arc.style.strokeDashoffset=circ-(score/100)*circ);
+  numEl.textContent=score;
+
+  const vLabel=document.getElementById('dashVerdictLabel');
+  const vSub=document.getElementById('dashVerdictSub');
+  if(score>=85){vLabel.textContent='Segmento PA saudável';vLabel.style.color='var(--good)';}
+  else if(score===50&&sigEntries.length===0&&d.devices.length>0){vLabel.textContent='Dados insuficientes';vLabel.style.color='var(--warn)';}
+  else if(score>=60){vLabel.textContent='Atenção necessária';vLabel.style.color='var(--warn)';}
+  else{vLabel.textContent='Intervenção urgente';vLabel.style.color='var(--crit)';}
+  vSub.textContent=score>=85?'Segmento PA operando dentro dos parâmetros IEC 61158-2. Monitoramento periódico recomendado.':
+    score===50&&sigEntries.length===0?'O arquivo não contém dados de sinal PA. Para análise completa, use um .ptn com dados de scope.':
+    score>=60?'Foram encontrados desvios que merecem atenção. Verifique os alertas abaixo.':
+    'O segmento apresenta problemas críticos. Ação corretiva urgente recomendada.';
+
+  document.getElementById('dashNetworkName').textContent=d.network.name||'Rede PROFIBUS PA';
+
+  // KPIs
+  const avgSig=sigEntries.length>0?Math.round(sigEntries.reduce((s,x)=>s+x.v,0)/sigEntries.length):null;
+  const avgJit=jitEntries.length>0?(jitEntries.reduce((s,x)=>s+x.v,0)/jitEntries.length).toFixed(2):null;
+  const sigCls=avgSig==null?'ok':signalQuality(avgSig);
+  const jitCls=avgJit==null?'ok':jitterQuality(parseFloat(avgJit));
+  const kpis=[
+    {val:d.network.slaves,lbl:'Instrumentos',cls:'ok'},
+    {val:avgSig!=null?avgSig+' mV':'—',lbl:'Sinal médio',cls:sigCls},
+    {val:avgJit!=null?avgJit+' µs':'—',lbl:'Jitter médio',cls:jitCls},
+    {val:critSig+critJit,lbl:'Críticos',cls:(critSig+critJit)>0?'crit':'ok'},
+    {val:warnSig+warnJit,lbl:'Alertas',cls:(warnSig+warnJit)>0?'warn':'ok'},
+    {val:totalDiag,lbl:'Diag. DX',cls:totalDiag>0?'warn':'ok'},
+  ];
+  document.getElementById('dashKpis').innerHTML=kpis.map(k=>`<div class="dash-kpi ${k.cls}"><div class="kpi-val">${k.val}</div><div class="kpi-lbl">${k.lbl}</div></div>`).join('');
+
+  // Alerts
+  const alerts=[];
+  const missingTerm=detectMissingTerminator(d);
+  if(missingTerm.length>0) alerts.push({cls:'crit',icon:'⚠',msg:`Terminação ativa extra detectada! End. ${missingTerm.map(x=>x.addr).join(', ')} — sinal anormalmente alto (>1500 mV pp). Verificar quantas terminações estão no segmento.`});
+  if(critSig>0) alerts.push({cls:'crit',icon:'⚠',msg:`${critSig} instrumento(s) com sinal PA crítico (<${PA_SIGNAL.warn_min} mV pp) — verificar resistência do trunk e alimentação do acoplador DP/PA.`});
+  if(critJit>0) alerts.push({cls:'crit',icon:'⚠',msg:`${critJit} instrumento(s) com jitter PA crítico (>${PA_JITTER.warn_max} µs) — verificar aterramento da malha blindada e interferência EMI.`});
+  if(totalLost>0) alerts.push({cls:'crit',icon:'⚠',msg:`${totalLost} perda(s) de comunicação — verificar alimentação e conexão do instrumento.`});
+  if(d.illegalDevices&&d.illegalDevices.length>0) alerts.push({cls:'crit',icon:'⚠',msg:`Respostas ilegais: end. ${d.illegalDevices.join(', ')} — possível conflito de endereço.`});
+  if(warnSig>0) alerts.push({cls:'warn',icon:'⚡',msg:`${warnSig} instrumento(s) com sinal PA na faixa de atenção (${PA_SIGNAL.warn_min}–${PA_SIGNAL.good_min} mV pp) — monitorar.`});
+  if(warnJit>0) alerts.push({cls:'warn',icon:'⚡',msg:`${warnJit} instrumento(s) com jitter PA na faixa de atenção — verificar aterramento da malha.`});
+  if(totalDiag>0) alerts.push({cls:'warn',icon:'⚡',msg:`${totalDiag} diagnóstico(s) em data exchange — verificar estado dos instrumentos (end.: ${d.diagSlaves.join(', ')||'—'}).`});
+  if(d.paramSlaves&&d.paramSlaves.length>0) alerts.push({cls:'warn',icon:'⚡',msg:`Parâmetros reenviados para end. ${d.paramSlaves.join(', ')} — instrumento(s) pode(m) ter sido reinicializado(s).`});
+  if(alerts.length===0) alerts.push({cls:'ok',icon:'✓',msg:'Segmento PROFIBUS PA operando normalmente. Nenhum problema detectado.'});
+  document.getElementById('dashAlerts').innerHTML=alerts.map(a=>`<div class="dash-alert ${a.cls}"><span class="alert-icon">${a.icon}</span><span>${a.msg}</span></div>`).join('');
+}
+
+/* ============================================================
+   RELATÓRIO PA — estilo ProfiTrace
+   ============================================================ */
+function renderReport(){
+  if(!state.data)return;
+  const d=state.data,m=state.meta,tags=state.tags;
+  const sigEntries=Object.entries(d.signals).map(([a,v])=>({addr:parseInt(a,10),v,q:signalQuality(v)}));
+  const jitEntries=Object.entries(d.jitters).map(([a,v])=>({addr:parseInt(a,10),v,q:jitterQuality(v)}));
+
+  let score=100;
+  const critSig=sigEntries.filter(s=>s.q==='crit').length;
+  const warnSig=sigEntries.filter(s=>s.q==='warn').length;
+  const critJit=jitEntries.filter(j=>j.q==='crit').length;
+  const warnJit=jitEntries.filter(j=>j.q==='warn').length;
+  const totalLost=d.devices.reduce((s,x)=>s+(x.timesLost||0),0);
+  const totalRetries=d.devices.reduce((s,x)=>s+(x.retryCount||0),0);
+  const totalDiag=d.devices.reduce((s,x)=>s+(x.diagDx||0),0);
+  score -= critSig*15+warnSig*5+critJit*12+warnJit*4+totalLost*20+totalRetries*3+totalDiag*5;
+  if(d.illegalDevices?.length>0)score-=25;
+  score=Math.max(0,Math.min(100,score));
+  if(sigEntries.length===0&&jitEntries.length===0&&d.devices.length>0)score=Math.min(score,50);
+
+  const deviations=d.deviations||d.diagSlaves.length>0||d.lostSlaves.length>0||d.retrySlaves.length>0||
+    sigEntries.some(s=>s.q==='crit')||jitEntries.some(j=>j.q==='crit');
+
+  const allAddrs=new Set();
+  d.devices.forEach(x=>allAddrs.add(x.addr));
+  d.addresses.forEach(x=>allAddrs.add(x.addr));
+  Object.keys(d.signals).forEach(a=>allAddrs.add(parseInt(a,10)));
+  const sortedAddrs=Array.from(allAddrs).sort((a,b)=>a-b);
+
+  const devPerPage=4;
+  const hasJitter=jitEntries.length>0;
+  const summaryPagesNum=sortedAddrs.length>0?Math.ceil(sortedAddrs.length/30):0;
+  const totalPages=1+5+(hasJitter?1:0)+summaryPagesNum+Math.ceil(sortedAddrs.length/devPerPage)+1+1;
+
+  let pageNum=0;
+  const t=a=>tags[a]?`<strong>${esc(tags[a])}</strong> (end. ${a})`:`instrumento no endereço <strong>${a}</strong>`;
+
+  function pageWrap(content){
+    pageNum++;
+    return `<section class="pt-page">
+      <div class="pt-page-head">
+        <div class="pt-logo">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="10" width="4" height="4" fill="#fff" rx="0.5"/>
+            <rect x="6" y="6" width="4" height="8" fill="#fff" rx="0.5" opacity=".8"/>
+            <rect x="10" y="10" width="4" height="4" fill="#fff" rx="0.5"/>
+            <rect x="14" y="6" width="4" height="8" fill="#fff" rx="0.5" opacity=".8"/>
+            <rect x="18" y="10" width="4" height="4" fill="#fff" rx="0.5"/>
+          </svg>
+        </div>
+        <div class="pt-page-title">
+          <h1>Relatório detalhado de rede PROFIBUS PA</h1>
+          <small>Gerado por: <b>BIO·PA</b> · IEC 61158-2 MBP · 31.25 kbps</small>
+        </div>
+      </div>
+      <div class="pt-page-body">${content}</div>
+      <footer class="pt-page-foot">
+        <div class="pt-page-foot-left">
+          <span class="pt-page-foot-disclaimer">A utilização deste documento implica aceitação dos termos de uso na última página.</span>
+          <div class="pt-sig-row">
+            <div class="pt-sig-cell"><label>Nome:</label><div class="line">${esc(m.tecnico||'')}</div></div>
+            <div class="pt-sig-cell"><label>Empresa:</label><div class="line">${esc(m.cliente||'')}</div></div>
+            <div class="pt-sig-cell"><label>Visto:</label><div class="line">&nbsp;</div></div>
+          </div>
+        </div>
+        <div class="pt-page-foot-right">
+          <span>${fmtDate(m.data)}</span>
+          <span class="pt-page-num">Página ${pageNum} / ${totalPages}</span>
+        </div>
+      </footer>
+    </section>`;
+  }
+
+  // ---- Resumo executivo ----
+  let verdictText,verdictColor;
+  if(sigEntries.length===0&&d.devices.length>0){verdictText='DADOS INSUFICIENTES';verdictColor='#e07b00';}
+  else if(score>=85){verdictText='SEGMENTO PA SAUDÁVEL';verdictColor='#1a9e50';}
+  else if(score>=60){verdictText='ATENÇÃO NECESSÁRIA';verdictColor='#e07b00';}
+  else{verdictText='INTERVENÇÃO URGENTE';verdictColor='#d02828';}
+
+  const pageExec=pageWrap(`
+    <div class="pt-section" style="text-align:center;padding-top:20px">
+      <h2 style="font-size:16pt;margin-bottom:20px">Resumo Executivo</h2>
+      <div style="width:120px;height:120px;border-radius:50%;border:8px solid ${verdictColor};display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+        <span style="font-size:36pt;font-weight:bold;color:${verdictColor};display:block;text-align:center;line-height:120px">${score}</span>
+      </div>
+      <div style="font-size:18pt;font-weight:bold;color:${verdictColor};margin-bottom:6px">${verdictText}</div>
+      <div style="font-size:10pt;color:#555;margin-bottom:24px">Saúde do segmento PA · Escala 0–100 · IEC 61158-2</div>
+    </div>
+    <div class="pt-section">
+      <div class="pt-fields" style="font-size:11pt">
+        <div class="lbl">Rede:</div><div class="val">${esc(d.network.name||'—')} · PROFIBUS PA · ${esc(d.network.speed||'31.25 kbit/s')}</div>
+        <div class="lbl">Local:</div><div class="val">${esc(m.cliente||'—')} · ${esc(m.planta||'—')}</div>
+        <div class="lbl">Instrumentos:</div><div class="val">${d.network.masters} mestre(s) · ${d.network.slaves} escravo(s)</div>
+        <div class="lbl">Data do relatório:</div><div class="val">${fmtDate(m.data)}</div>
+      </div>
+    </div>
+    <div class="pa-info-box">
+      <strong>PROFIBUS PA (IEC 61158-2 MBP):</strong> Sinalização Manchester bus-powered em 31.25 kbps.
+      Sinal em mV peak-to-peak. Alimentação pelo barramento (9–32 V DC). Sem idle voltage — PA usa MBP, não RS-485.
+    </div>
+  `);
+
+  // ---- Página 1: Seções 1-5 ----
+  const projectDetails=m.area||(m.cliente&&m.planta?`${m.cliente} — ${m.planta}`:'');
+  const page1=pageWrap(`
+    <div class="pt-section"><h2>1 Geral</h2>
+      <div class="pt-fields">
+        <div class="lbl">Local:</div><div class="val">${esc(d.network.location||m.cliente||'—')}</div>
+        <div class="lbl">Nome da rede:</div><div class="val">${esc(d.network.name||'—')}</div>
+        <div class="lbl">Início da medição:</div><div class="val">${esc(d.network.startTime||'—')}</div>
+        <div class="lbl">Duração da medição:</div><div class="val">${esc(d.network.duration||'—')}</div>
+        <div class="lbl">Detalhes do projeto:</div><div class="val"></div>
+      </div>
+      <div class="pt-box">${esc(projectDetails||'Sem informações adicionais')}</div>
+      <div class="pt-box-caption">(Definido pelo técnico responsável)</div>
+    </div>
+    <div class="pt-section"><h2>2 Ferramentas utilizadas</h2>
+      <div class="pt-fields">
+        <div class="lbl">Equipamento ProfiCore (S/N):</div><div class="val">${esc(d.network.proficore||'—')}</div>
+        <div class="lbl">Versão do ProfiTrace:</div><div class="val">${esc(d.network.version||'—')}</div>
+      </div>
+    </div>
+    <div class="pt-section"><h2>3 Propriedades da rede PA</h2>
+      <div class="pt-fields">
+        <div class="lbl">Tipo de sinalização:</div><div class="val">PROFIBUS PA · IEC 61158-2 MBP · Manchester Bus Powered</div>
+        <div class="lbl">Velocidade de transmissão:</div><div class="val">${esc(d.network.speed||'31.25 kbit/s')}</div>
+        <div class="lbl">Número de mestres:</div><div class="val">${d.network.masters}</div>
+        <div class="lbl">Número de escravos (instrumentos PA):</div><div class="val">${d.network.slaves}</div>
+        <div class="lbl">Tempo de ciclo:</div><div class="val">Mín: ${esc(d.network.cycleMin)||'—'} · Médio: ${esc(d.network.cycleAvg)||'—'} · Máx: ${esc(d.network.cycleMax)||'—'}</div>
+      </div>
+    </div>
+    <div class="pt-section"><h2>4 Conclusão</h2>
+      <div class="pt-conclusion">
+        <div class="pt-check-row ${!deviations?'active':''}"><span class="pt-check">${!deviations?'✓':''}</span><span>Nenhum desvio encontrado</span></div>
+        <div class="pt-check-row ${deviations?'active':''}"><span class="pt-check ${deviations?'checked':''}">${deviations?'✗':''}</span><span>Desvios encontrados</span></div>
+      </div>
+    </div>
+    <div class="pt-section"><h2>5 Comentários</h2>
+      <div class="pt-box">${esc(m.comentarios||'Nenhum')}</div>
+      <div class="pt-box-caption">(Definido pelo técnico responsável)</div>
+    </div>
+  `);
+
+  // ---- Página 2: Itens analisados ----
+  function subjRow(num,label,list,note){
+    const ok=list.length===0;
+    return `<div class="pt-subj">
+      <div class="desc"><span class="main"><b>${num}</b> ${label}</span>${note?`<span class="note">${note}</span>`:''}
+      </div>
+      <div class="res"><span class="val">${ok?'Nenhum':list.join(', ')}</span><span class="icon ${ok?'ok':'fail'}">${ok?'✓':'✗'}</span></div>
+    </div>`;
+  }
+  const page2=pageWrap(`
+    <div class="pt-section"><h2>6 Itens analisados</h2>
+      <div class="pt-subjects">
+        ${subjRow('6.1','Instrumentos PA perdidos pelo menos uma vez',d.lostSlaves)}
+        ${subjRow('6.2','Instrumentos PA que geraram diagnóstico em data exchange',d.diagSlaves)}
+        ${subjRow('6.3','Dispositivos que causaram respostas ilegais',d.illegalDevices)}
+        ${subjRow('6.4','Dispositivo no endereço reservado 126',d.reservedDevice)}
+        ${subjRow('6.5','Instrumentos PA que causaram retentativas',d.retrySlaves)}
+        ${subjRow('6.6','Parâmetros enviados aos seguintes instrumentos',d.paramSlaves)}
+      </div>
+    </div>
+  `);
+
+  // ---- Página 3: Live List ----
+  const page3=pageWrap(`
+    <div class="pt-section"><h2>7 Live list — Segmento PA</h2>
+      ${renderLiveList(d,tags)}
+      <h3 style="margin-top:16px">Legenda</h3>
+      <div class="pt-legend">
+        <div class="lg-item"><span class="swatch" style="background:#fff"></span>Sem atividade</div>
+        <div class="lg-item"><span class="swatch-num" style="background:#a3d8a8">1</span>Estação mestre (acoplador DP/PA)</div>
+        <div class="lg-item"><span class="swatch" style="background:#71c14a"></span>Em troca de dados (data exchange)</div>
+        <div class="lg-item"><span class="swatch-num" style="background:#71c14a">3</span>Instrumento PA escravo</div>
+        <div class="lg-item"><span class="swatch" style="background:#f5d24a"></span>Instrumento perdido</div>
+        <div class="lg-item"><span class="swatch" style="background:#e95f5f"></span>Erro de parâmetro / configuração</div>
+      </div>
+    </div>
+  `);
+
+  // ---- Página 4: Lista de endereços ----
+  let addrRows='';
+  for(const a of sortedAddrs){
+    const dev=d.devices.find(x=>x.addr===a)||{};
+    const ai =d.addresses.find(x=>x.addr===a)||{};
+    addrRows+=`<tr>
+      <td class="num"><b>${a}</b></td>
+      <td class="center" style="color:var(--pa-blue);font-weight:600">${esc(tags[a]||'—')}</td>
+      <td>${esc(ai.identNo||dev.identNo||'—')}</td>
+      <td>${esc(ai.manufacturer||dev.manufacturer||'—')}</td>
+      <td>${esc(ai.model||dev.model||dev.deviceType||'—')}</td>
+      <td>${esc(ai.gsd||'—')}</td>
+    </tr>`;
+  }
+  const page4=pageWrap(`
+    <div class="pt-section"><h2>8 Lista de endereços</h2>
+      <table class="pt-table">
+        <thead><tr><th>End.</th><th class="center">TAG</th><th>IdentNo</th><th>Fabricante</th><th>Modelo / Tipo</th><th>Arquivo GSD</th></tr></thead>
+        <tbody>${addrRows}</tbody>
+      </table>
+    </div>
+  `);
+
+  // ---- Página 5: Gráfico sinal PA ----
+  const page5=pageWrap(`
+    <div class="pt-section"><h2>9 Gráfico de barras — Sinal PA</h2>
+      <h3>9.1 Segmento PA (Ponto de medição 1)</h3>
+      <div class="pt-bargraph">
+        <div class="pt-bargraph-title">Nível de sinal PA (mV peak-to-peak)</div>
+        <div class="pt-bargraph-sub">
+          Faixa saudável (IEC 61158-2): ≥${PA_SIGNAL.good_min} mV · Atenção: ${PA_SIGNAL.warn_min}–${PA_SIGNAL.good_min} mV · Crítico: &lt;${PA_SIGNAL.warn_min} mV · Terminador ausente: &gt;${PA_SIGNAL.term_missing_min} mV
+        </div>
+        <div class="pt-bargraph-svg-wrap">
+          ${sigEntries.length>0?renderBarChart(sigEntries,{unit:'mV',yMax:1200,yStep:200,
+            referenceLines:[
+              {y:PA_SIGNAL.warn_min,color:'#d02828',dash:'2,2'},
+              {y:PA_SIGNAL.good_min,color:'#1a9e50',dash:'3,2'}
+            ],tags}):
+          '<p style="text-align:center;color:#666;padding:30px;font-size:9pt">Sem dados de sinal PA disponíveis neste arquivo.</p>'}
+        </div>
+      </div>
+    </div>
+  `);
+
+  // ---- Página 6 (condicional): Jitter PA ----
+  let page6='';
+  if(hasJitter){
+    page6=pageWrap(`
+      <div class="pt-section"><h2>9 Gráfico de barras (continuação) — Jitter PA</h2>
+        <div class="pt-bargraph">
+          <div class="pt-bargraph-title">Jitter PA (µs)</div>
+          <div class="pt-bargraph-sub">Variação no tempo de resposta — limite PA (IEC 61158-2): ${PA_JITTER.warn_max} µs</div>
+          <div class="pt-bargraph-svg-wrap">
+            ${renderBarChart(jitEntries,{unit:'µs',yMax:3,yStep:0.5,inverted:true,
+              referenceLines:[
+                {y:PA_JITTER.good_max,color:'#1a9e50',dash:'3,2'},
+                {y:PA_JITTER.warn_max,color:'#d02828',dash:'2,2'}
+              ],tags})}
+          </div>
+        </div>
+      </div>
+    `);
+  }
+
+  // ---- Tabela resumo ----
+  function scoreColor(s){return s>=85?{bg:'#d4edda',fg:'#155724'}:s>=60?{bg:'#fff3cd',fg:'#856404'}:{bg:'#f8d7da',fg:'#721c24'};}
+  const summaryRows=sortedAddrs.map(a=>{
+    const dev=d.devices.find(x=>x.addr===a)||{addr:a};
+    const sig=d.signals[a],jit=d.jitters[a];
+    let sc=100;
+    const sq=signalQuality(sig),jq=jitterQuality(jit);
+    if(sq==='crit')sc-=40; else if(sq==='warn')sc-=18;
+    if(jq==='crit')sc-=25; else if(jq==='warn')sc-=12;
+    if(dev.retryCount>0)sc-=Math.min(15,dev.retryCount*3);
+    if(dev.diagDx>0)sc-=Math.min(20,dev.diagDx*5);
+    if(dev.timesLost>0)sc-=Math.min(40,dev.timesLost*25);
+    sc=Math.max(0,Math.min(100,sc));
+    return {addr:a,tag:tags[a]||'',sig,jit,score:sc};
+  }).sort((a,b)=>a.score-b.score);
+
+  const summaryPgs=[];
+  const ROWS_PP=30;
+  for(let i=0;i<summaryRows.length;i+=ROWS_PP){
+    const slice=summaryRows.slice(i,i+ROWS_PP);
+    summaryPgs.push(pageWrap(`
+      <div class="pt-section">
+        ${i===0?`<h2>9.5 Tabela resumo por instrumento PA</h2>
+          <p style="font-size:9pt;color:#555;margin-bottom:8px">Ordenado por score (pior primeiro). Verde ≥85 · Amarelo 60–84 · Vermelho &lt;60.</p>`
+          :`<h2>9.5 Tabela resumo (continuação)</h2>`}
+        <table class="pt-table" style="font-size:9pt">
+          <thead><tr><th>End.</th><th>TAG</th><th>Sinal (mV)</th><th>Jitter (µs)</th><th>Score</th><th>Diag</th><th>Retries</th><th>Perdido</th></tr></thead>
+          <tbody>${slice.map(r=>{const sc=scoreColor(r.score);const dev=d.devices.find(x=>x.addr===r.addr)||{};
+            return`<tr>
+              <td class="num"><b>${r.addr}</b></td>
+              <td>${esc(r.tag)||'—'}</td>
+              <td class="num">${r.sig!=null?r.sig:'—'}</td>
+              <td class="num">${r.jit!=null?r.jit:'—'}</td>
+              <td class="num"><span style="background:${sc.bg};color:${sc.fg};padding:1pt 6pt;border-radius:6pt;font-weight:bold">${r.score}</span></td>
+              <td class="num">${dev.diagDx||0}</td>
+              <td class="num">${dev.retryCount||0}</td>
+              <td class="num">${dev.timesLost||0}</td>
+            </tr>`;}).join('')}
+          </tbody>
+        </table>
+      </div>
+    `));
+  }
+
+  // ---- Device pages ----
+  const devicePages=[];
+  for(let i=0;i<sortedAddrs.length;i+=devPerPage){
+    const slice=sortedAddrs.slice(i,i+devPerPage);
+    let body='';
+    if(i===0) body+=`<div class="pt-section"><h2>10 Detalhamento por instrumento PA</h2><h3>10.1 Segmento PA (Ponto de medição 1)</h3></div>`;
+    for(const a of slice) body+=renderDeviceBlock(a,d,tags);
+    devicePages.push(pageWrap(body));
+  }
+
+  // ---- Recomendações ----
+  const recs=generateRecommendations(d,tags,sigEntries,jitEntries);
+  const finalPage=pageWrap(`
+    <div class="pt-section"><h2>11 Recomendações de manutenção — Segmento PA</h2>
+      ${recs.length?`<div class="pt-recommendations"><ol>${recs.map(r=>`<li>${r}</li>`).join('')}</ol></div>`
+        :`<div class="pt-no-issues">✓ Nenhuma ação corretiva necessária. Recomenda-se medição periódica a cada 6 meses ou após intervenção no segmento.</div>`}
+    </div>
+    ${d._confidence?`<div class="pt-section" style="margin-top:20px"><h2>12 Confiabilidade dos dados</h2>
+      <div class="pt-fields">
+        <div class="lbl">Estações detectadas:</div><div class="val">${d._confidence.stationsFound} instrumento(s) PA</div>
+        <div class="lbl">Leituras de sinal PA:</div><div class="val">${d._confidence.signalsFound} leituras válidas (mV pp)</div>
+        <div class="lbl">Dados de idle voltage:</div><div class="val">Não aplicável — PROFIBUS PA usa MBP, não RS-485</div>
+      </div>
+      ${d._confidence.warnings.length>0?`<ul style="font-size:9pt;color:#555;margin:8px 0 0 18px">${d._confidence.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
+    </div>`:''}
+    <div class="pt-section" style="margin-top:30px">
+      <h2 style="font-size:11pt">Aviso legal</h2>
+      <p style="font-size:9pt;line-height:1.5;color:#333">
+        Este relatório foi gerado automaticamente a partir de medição feita com o ProfiTrace.
+        Os dados refletem apenas o instante e a duração da medição. A análise não substitui
+        inspeção física em campo. Recomenda-se validação por técnico habilitado em redes
+        PROFIBUS PA antes de qualquer intervenção.
+      </p>
+    </div>
+    <div style="margin-top:30px;text-align:center;font-size:8pt;color:#888;border-top:1px solid #ccc;padding-top:8px">— Fim do relatório — BIO·PA v1.0 · IEC 61158-2 MBP —</div>
+  `);
+
+  // ---- Glossário PA ----
+  const glossaryPage=pageWrap(`
+    <div class="pt-section"><h2>Glossário PROFIBUS PA</h2>
+      <p style="font-size:9pt;color:#555;margin-bottom:12px">Termos em inglês por serem exibidos assim no ProfiTrace e na norma IEC 61158.</p>
+      <table class="pt-table">
+        <thead><tr><th style="width:160px">Termo</th><th>Significado</th></tr></thead>
+        <tbody>
+          <tr><td><b>MBP</b></td><td>Manchester Bus Powered — sinalização PROFIBUS PA (IEC 61158-2): codificação Manchester, alimentação pelo barramento (9–32 V DC).</td></tr>
+          <tr><td><b>PA signal level</b></td><td>Amplitude do sinal Manchester medida em mV peak-to-peak. <b>Saudável:</b> ≥${PA_SIGNAL.good_min} mV. <b>Atenção:</b> ${PA_SIGNAL.warn_min}–${PA_SIGNAL.good_min} mV. <b>Crítico:</b> &lt;${PA_SIGNAL.warn_min} mV. <b>Term. ausente:</b> &gt;${PA_SIGNAL.term_missing_min} mV.</td></tr>
+          <tr><td><b>PA Jitter</b></td><td>Variação temporal do sinal Manchester. Indica instabilidade. Limite PA: ${PA_JITTER.warn_max} µs. Valores altos indicam interferência EMI ou aterramento deficiente.</td></tr>
+          <tr><td><b>Acoplador DP/PA</b></td><td>Dispositivo que converte PROFIBUS DP (RS-485) em PROFIBUS PA (MBP). Alimenta o segmento PA e isola galvanicamente.</td></tr>
+          <tr><td><b>Segment Coupler</b></td><td>Acoplador que alimenta o trunk PA. Limitado em corrente (tipicamente 100–400 mA). Ex: Pepperl+Fuchs SK2, Stahl 9001/01.</td></tr>
+          <tr><td><b>Power Conditioner</b></td><td>Fonte de alimentação dedicada para o segmento PA, com filtragem. Permite alimentação redundante.</td></tr>
+          <tr><td><b>Terminador PA</b></td><td>Terminação passiva nas duas extremidades do trunk PA (capacitor + resistor em série). Diferente do DP — NÃO tem alimentação 5V. Resistência tip.: ~100 Ω/segmento.</td></tr>
+          <tr><td><b>FISCO</b></td><td>Fieldbus Intrinsically Safe Concept — modelo de segurança intrínseca para PA em áreas Ex ia. Limita potência injetada no segmento.</td></tr>
+          <tr><td><b>FNICO</b></td><td>Fieldbus Non-Incendive Concept — PA em áreas Ex nA. Menos restritivo que FISCO.</td></tr>
+          <tr><td><b>Trunk / Spur</b></td><td>Trunk = cabo principal do segmento PA. Spur = derivação até o instrumento. Spur máximo: 120 m (geral) ou 30 m (FISCO).</td></tr>
+          <tr><td><b>Data Exchange</b></td><td>Comunicação cíclica normal entre mestre (acoplador) e instrumento PA.</td></tr>
+          <tr><td><b>Times Lost</b></td><td>Quantas vezes o instrumento PA perdeu comunicação. Qualquer valor &gt;0 é crítico.</td></tr>
+          <tr><td><b>ProfiCore</b></td><td>Hardware da Procentec para capturar dados do barramento PA.</td></tr>
+        </tbody>
+      </table>
+      <h3 style="margin-top:14px">Comprimento máximo do segmento PA (IEC 61158-2, cabo tipo A)</h3>
+      <table class="pt-table" style="font-size:9pt">
+        <thead><tr><th>Aplicação</th><th>Trunk máximo</th><th>Spur máximo</th><th>Instrumentos</th></tr></thead>
+        <tbody>
+          <tr><td>Geral (não Ex)</td><td>1.900 m</td><td>120 m</td><td>até 32</td></tr>
+          <tr><td>FISCO (Ex ia)</td><td>1.000 m</td><td>30 m</td><td>até 32</td></tr>
+          <tr><td>FNICO (Ex nA)</td><td>1.900 m</td><td>60 m</td><td>até 32</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `);
+
+  reportDoc.innerHTML=pageExec+page1+page2+page3+page4+page5+page6+summaryPgs.join('')+devicePages.join('')+finalPage+glossaryPage;
+}
+
+/* ============================================================
+   RENDER DEVICE BLOCK
+   ============================================================ */
+function renderDeviceBlock(addr,d,tags){
+  const dev=d.devices.find(x=>x.addr===addr)||{addr};
+  const ai =d.addresses.find(x=>x.addr===addr)||{};
+  const sig=d.signals[addr],jit=d.jitters[addr],tag=tags[addr];
+  const sQ=signalQuality(sig),jQ=jitterQuality(jit);
+  let critical=false,warning=false;
+  if(sQ==='crit'||jQ==='crit'||dev.timesLost>0)critical=true;
+  else if(sQ==='warn'||jQ==='warn'||dev.diagDx>0||dev.retryCount>0)warning=true;
+  const headCls=critical?'crit':warning?'warn':'';
+  const pill=critical?'crit':warning?'warn':'ok';
+  const pillTxt=critical?'Crítico':warning?'Atenção':'OK';
+  function statusLabel(q){return q==='ok'?'OK':q==='warn'?'Atenção':q==='crit'?'Crítico':'Sem dados';}
+  return `<div class="pt-device">
+    <div class="pt-device-head ${headCls}">
+      <div class="h-left">
+        <span class="h-addr">End.: ${addr}</span>
+        ${tag?`<span class="h-tag">TAG: ${esc(tag)}</span>`:''}
+      </div>
+      <span class="h-pill ${pill}">${pillTxt}</span>
+    </div>
+    <div class="pt-device-fields">
+      <div class="lbl">Nome do dispositivo:</div><div class="val">${esc(dev.deviceName||'Instrumento PA')}</div>
+      <div class="lbl">Tipo:</div><div class="val">${esc(dev.deviceType||'Slave PA')}</div>
+      ${(ai.identNo||dev.identNo)?`<div class="lbl">IdentNo:</div><div class="val">${esc(ai.identNo||dev.identNo)}</div>`:''}
+      ${(ai.manufacturer||dev.manufacturer)?`<div class="lbl">Fabricante:</div><div class="val">${esc(ai.manufacturer||dev.manufacturer)}</div>`:''}
+      ${(ai.model||dev.model)?`<div class="lbl">Modelo:</div><div class="val">${esc(ai.model||dev.model)}</div>`:''}
+      ${dev.ioStr?`<div class="lbl">I/O (bytes):</div><div class="val">${esc(dev.ioStr)}</div>`:''}
+      <div class="lbl">Nível de sinal PA:</div><div class="val">${sig!=null?`${sig} mV pp — ${statusLabel(sQ)}`:'<span style="color:#999">— (não disponível)</span>'}</div>
+      ${jit!=null?`<div class="lbl">Jitter PA:</div><div class="val">${jit} µs — ${statusLabel(jQ)}</div>`:''}
+      <div class="lbl">Diag. em data exchange:</div><div class="val">${dev.diagDx||0}</div>
+      <div class="lbl">Total de retentativas:</div><div class="val">${dev.retryCount||0}</div>
+      <div class="lbl">Vezes perdido:</div><div class="val">${dev.timesLost||0}</div>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   LIVE LIST
+   ============================================================ */
+function renderLiveList(d,tags){
+  const masters=new Set();
+  d.devices.forEach(x=>{if((x.deviceType||'').toLowerCase().includes('master'))masters.add(x.addr);});
+  if(masters.size===0&&d.network.masters>0&&d.devices.find(x=>x.addr===1))masters.add(1);
+  const slaves=new Set();
+  d.devices.forEach(x=>{if(!masters.has(x.addr))slaves.add(x.addr);});
+  d.addresses.forEach(x=>slaves.add(x.addr));
+  Object.keys(d.signals).forEach(a=>slaves.add(parseInt(a,10)));
+  for(const m of masters)slaves.delete(m);
+
+  let html='<table class="pt-livelist"><thead><tr><th></th>';
+  for(let c=0;c<10;c++) html+=`<th>${c}</th>`;
+  html+='</tr></thead><tbody>';
+  for(let row=0;row<13;row++){
+    const base=row*10;
+    html+=`<tr><td class="row-h">${base}</td>`;
+    for(let col=0;col<10;col++){
+      const a=base+col;
+      if(a>126){html+='<td class="invisible"></td>';continue;}
+      if(masters.has(a)){html+=`<td class="master" title="End. ${a}${tags[a]?` · ${tags[a]}`:''}">${tags[a]?esc(tags[a]).substring(0,9):a}</td>`;}
+      else if(slaves.has(a)){
+        const dev=d.devices.find(x=>x.addr===a)||{};
+        const sq=signalQuality(d.signals[a]);
+        const cls=(dev.timesLost>0||sq==='crit')?'slave-crit':(dev.diagDx>0||dev.retryCount>0||sq==='warn')?'slave-warn':'slave-ok';
+        const lbl=tags[a]?esc(tags[a]).substring(0,9):(d.addresses.find(x=>x.addr===a)||{}).model?.substring(0,9)||a;
+        html+=`<td class="${cls}" title="End. ${a}${tags[a]?` · ${tags[a]}`:''}">${lbl}</td>`;
+      }
+      else if(a===126){html+=`<td class="reserved">${a}</td>`;}
+      else{html+=`<td class="empty">${a}</td>`;}
+    }
+    html+='</tr>';
+  }
+  html+='</tbody></table>';
+  return html;
+}
+
+/* ============================================================
+   BAR CHART
+   ============================================================ */
+function renderBarChart(entries,opts){
+  if(!entries.length)return'<p style="text-align:center;color:#666;padding:30px">Sem dados disponíveis.</p>';
+  const sorted=entries.slice().sort((a,b)=>a.addr-b.addr);
+  const yMax=opts.yMax,yStep=opts.yStep,yTicks=Math.round(yMax/yStep);
+  const n=sorted.length;
+  const W=Math.max(700,n*16+80),H=230;
+  const pL=62,pR=14,pT=14,pB=38;
+  const cW=W-pL-pR,cH=H-pT-pB;
+  const bGap=Math.max(2,Math.min(6,(cW/n)*0.2));
+  const bW=Math.max(6,(cW-(n-1)*bGap)/n);
+  const yS=v=>pT+cH-(v/yMax)*cH;
+
+  let grid='';
+  for(let i=0;i<=yTicks;i++){
+    const v=Math.round(yStep*i*1000)/1000,y=yS(v);
+    const lbl=Number.isInteger(v)?v.toString():v.toFixed(1);
+    grid+=`<line x1="${pL}" x2="${W-pR}" y1="${y}" y2="${y}" stroke="${i===0?'#000':'#bbb'}" stroke-width="${i===0?'1':'0.5'}" stroke-dasharray="${i===0?'0':'1,2'}"/>`;
+    grid+=`<text x="${pL-6}" y="${y+3.5}" text-anchor="end" font-size="9" fill="#000" font-family="Arial">${lbl}${opts.unit}</text>`;
+  }
+  let refs='';
+  (opts.referenceLines||[]).forEach(r=>{refs+=`<line x1="${pL}" x2="${W-pR}" y1="${yS(r.y)}" y2="${yS(r.y)}" stroke="${r.color}" stroke-width="1" stroke-dasharray="${r.dash||'3,2'}"/>`;});
+
+  const gId='g_'+Math.random().toString(36).slice(2,8);
+  const defs=`<defs>
+    <linearGradient id="${gId}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0e040"/><stop offset="55%" stop-color="#a8d845"/><stop offset="100%" stop-color="#5eb030"/>
+    </linearGradient>
+    <linearGradient id="${gId}_w" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fdd28a"/><stop offset="100%" stop-color="#f5a623"/>
+    </linearGradient>
+    <linearGradient id="${gId}_c" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f4a8a3"/><stop offset="100%" stop-color="#d63838"/>
+    </linearGradient>
+  </defs>`;
+
+  let bars='';
+  sorted.forEach((e,i)=>{
+    const x=pL+i*(bW+bGap),y=yS(Math.min(e.v,yMax)),h=pT+cH-y;
+    const q=opts.inverted?jitterQuality(e.v):signalQuality(e.v);
+    const fill=q==='crit'?`url(#${gId}_c)`:q==='warn'?`url(#${gId}_w)`:`url(#${gId})`;
+    const fSize=bW<12?7:bW<16?8.5:10.5;
+    const aFSize=bW<12?7:bW<16?8:9.5;
+    const vLbl=Number.isInteger(e.v)?e.v:(typeof e.v==='number'?e.v.toFixed(e.v<10?2:0):e.v);
+    bars+=`<g>
+      <rect x="${x}" y="${y}" width="${bW}" height="${h}" fill="${fill}" stroke="#444" stroke-width="0.4"/>
+      <text x="${x+bW/2}" y="${y-3}" text-anchor="middle" font-size="${fSize}" fill="#000" font-family="Arial" font-weight="bold">${vLbl}</text>
+      <text x="${x+bW/2}" y="${H-pB+13}" text-anchor="middle" font-size="${aFSize}" fill="#000" font-family="Arial" font-weight="bold">${e.addr}</text>
+    </g>`;
+  });
+  return`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">${defs}${grid}${refs}${bars}</svg>`;
+}
+
+/* ============================================================
+   RECOMENDAÇÕES PA
+   ============================================================ */
+function generateRecommendations(d,tags,sigEntries,jitEntries){
+  const recs=[];
+  const t=a=>tags[a]?`<strong>${esc(tags[a])}</strong> (end. ${a})`:`instrumento no endereço <strong>${a}</strong>`;
+
+  // Terminador ausente
+  const missingTerm=detectMissingTerminator(d);
+  if(missingTerm.length>0){
+    recs.push(`<strong>⚠ TERMINADOR PROVAVELMENTE AUSENTE</strong> — Sinal PA anormalmente alto em: ${missingTerm.map(x=>t(x.addr)).join(', ')}. Valores: ${missingTerm.map(x=>`${x.value} mV pp`).join(', ')}.
+      <br><em>Diagnóstico:</em> Sinal PA acima de 1500 mV pp indica que pelo menos um terminador do segmento está ausente ou desconectado.
+      <br><em>Procedimento:</em> (1) Inspecionar terminadores nas duas extremidades do trunk PA; (2) Verificar se o terminal block do acoplador DP/PA tem terminação ativa habilitada; (3) Medir resistência entre PA+ e PA- com rede desligada — deve ser ~50 Ω com 2 terminadores, ~100 Ω com 1.
+      <br><em>Fonte:</em> PTO Whitepaper 2005 — IEC 61158-2`);
+  }
+
+  // Sinal PA crítico (baixo)
+  sigEntries.filter(s=>s.q==='crit'&&s.v<PA_SIGNAL.warn_min).forEach(s=>{
+    recs.push(`<strong>SINAL PA CRÍTICO BAIXO</strong> — ${t(s.addr)}: sinal medido <strong>${s.v} mV pp</strong> (mínimo: ${PA_SIGNAL.warn_min} mV pp, IEC 61158-2).
+      <br><em>Procedimento:</em> (1) Verificar alimentação do acoplador DP/PA (corrente e tensão DC); (2) Medir corrente total do segmento PA; (3) Verificar impedância do trunk PA; (4) Checar polaridade do cabo (PA+ / PA−); (5) Inspecionar conexões do instrumento e spur.`);
+  });
+
+  // Sinal PA muito alto (mas não chegou ao limite de terminador)
+  sigEntries.filter(s=>s.v>PA_SIGNAL.high_max&&s.v<PA_SIGNAL.term_missing_min).forEach(s=>{
+    recs.push(`<strong>SINAL PA ELEVADO</strong> — ${t(s.addr)}: <strong>${s.v} mV pp</strong> (acima de ${PA_SIGNAL.high_max} mV pp).
+      <br><em>Procedimento:</em> (1) Verificar corrente de saída do instrumento; (2) Checar impedância do spur — spur muito curto pode elevar o sinal.`);
+  });
+
+  // Sinal PA marginal
+  sigEntries.filter(s=>s.q==='warn').forEach(s=>{
+    recs.push(`<strong>ATENÇÃO — SINAL PA MARGINAL</strong> — ${t(s.addr)}: <strong>${s.v} mV pp</strong> (faixa de atenção: ${PA_SIGNAL.warn_min}–${PA_SIGNAL.good_min} mV pp).
+      <br><em>Ação:</em> Agendar inspeção preventiva. Monitorar na próxima medição. Se degradar, aplicar procedimento de sinal PA baixo.`);
+  });
+
+  // Jitter PA crítico
+  jitEntries.filter(j=>j.q==='crit').forEach(j=>{
+    recs.push(`<strong>JITTER PA ELEVADO</strong> — ${t(j.addr)}: <strong>${j.v} µs</strong> (limite PA: ${PA_JITTER.warn_max} µs).
+      <br><em>Procedimento:</em> (1) Verificar aterramento da malha blindada do trunk PA em ponto único; (2) Afastar o cabo PA de fontes de EMI (cabos de potência, inversores, contatoras); (3) Checar continuidade da malha do trunk; (4) Verificar se o spur do instrumento está devidamente blindado.`);
+  });
+
+  // Perda de comunicação
+  d.devices.filter(x=>x.timesLost>0).forEach(dev=>{
+    recs.push(`<strong>PERDA DE COMUNICAÇÃO PA</strong> — ${t(dev.addr)} perdeu comunicação <strong>${dev.timesLost}</strong> vez(es).
+      <br><em>Procedimento URGENTE:</em> (1) Verificar alimentação do instrumento via barramento PA (corrente consumida); (2) Inspecionar conector e prensa-cabo do spur; (3) Medir isolamento do cabo spur; (4) Verificar GSD correto no CLP; (5) Testar com spur reserva.`);
+  });
+
+  // Diagnósticos em DX
+  d.devices.filter(x=>x.diagDx>0).forEach(dev=>{
+    recs.push(`<strong>DIAGNÓSTICOS EM DATA EXCHANGE</strong> — ${t(dev.addr)}: <strong>${dev.diagDx}</strong> diagnóstico(s).
+      <br><em>Procedimento:</em> (1) Verificar parametrização e I/O no CLP; (2) Confirmar GSD correto (versão do firmware); (3) Verificar data de calibração e estado do instrumento de campo.`);
+  });
+
+  // Retentativas
+  d.devices.filter(x=>x.retryCount>0).forEach(dev=>{
+    recs.push(`<strong>RETENTATIVAS</strong> — ${t(dev.addr)}: <strong>${dev.retryCount}</strong> retry(ies).
+      <br><em>Procedimento:</em> (1) Inspecionar cabo e conector do spur; (2) Verificar comprimento do spur (máx. 120 m geral, 30 m FISCO); (3) Testar cabo reserva.`);
+  });
+
+  // Comprimento máximo do segmento
+  recs.push(`<strong>REFERÊNCIA — LIMITE DE SEGMENTO PA</strong> (IEC 61158-2): trunk máximo de <strong>1.900 m</strong> (não Ex) / <strong>1.000 m</strong> (FISCO Ex ia). Máximo de <strong>32 instrumentos por segmento</strong>. Verificar sempre o total de corrente consumida vs. capacidade do acoplador DP/PA.
+    ${d.network.slaves>32?`<br><em>Atenção:</em> Esta rede tem ${d.network.slaves} escravos — verificar se há múltiplos segmentos PA.`:''}`);
+
+  if(recs.length>1) recs.push(`<strong>VALIDAÇÃO:</strong> Após as ações corretivas, realizar nova medição com ProfiTrace PA para confirmar a efetividade. Comparar os valores de sinal (mV pp) e jitter (µs) com este relatório.`);
+
+  return recs;
+}
+
+/* ============================================================
+   DOWNLOADS
+   ============================================================ */
+$('#btnRefresh').addEventListener('click',()=>renderReport());
+
+$('#btnCsv').addEventListener('click',()=>{
+  if(!state.data)return;
+  const d=state.data,tags=state.tags;
+  const allAddrs=new Set();
+  d.devices.forEach(x=>allAddrs.add(x.addr));
+  d.addresses.forEach(x=>allAddrs.add(x.addr));
+  Object.keys(d.signals).forEach(a=>allAddrs.add(parseInt(a,10)));
+  const sorted=Array.from(allAddrs).sort((a,b)=>a-b);
+  const header='Endereço;TAG;Fabricante;Modelo;Sinal_mV_pp;Sinal_Status;Jitter_us;Jitter_Status;Diag_DX;Retries;Vezes_Perdido';
+  const rows=sorted.map(addr=>{
+    const dev=d.devices.find(x=>x.addr===addr)||{};
+    const ai=d.addresses.find(x=>x.addr===addr)||{};
+    const sig=d.signals[addr],jit=d.jitters[addr];
+    return[addr,tags[addr]||'',ai.manufacturer||dev.manufacturer||'',ai.model||dev.model||dev.deviceType||'',
+      sig!=null?sig:'',sig!=null?signalQuality(sig):'',
+      jit!=null?jit:'',jit!=null?jitterQuality(jit):'',
+      dev.diagDx||0,dev.retryCount||0,dev.timesLost||0].join(';');
+  });
+  const csv=[header,...rows].join('\n');
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=(state.meta.cliente||'profibus-pa').replace(/[^a-z0-9_-]/gi,'_')+'_pa_dados.csv';
+  a.click();URL.revokeObjectURL(url);
+  showToast('Arquivo CSV exportado ✓');
+});
+
+$('#btnPdf').addEventListener('click',()=>{
+  if(!state.data){showToast('Nenhum arquivo carregado.',true);return;}
+  $$('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab==='report'));
+  $$('.tab-content').forEach(el=>el.classList.toggle('hidden',el.id!=='tab-report'));
+  renderReport();
+  const isMobile=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  function waitForReport(max){return new Promise((res,rej)=>{const s=Date.now();function c(){const el=document.getElementById('reportDoc');if(el&&el.innerHTML.trim().length>200)res(el);else if(Date.now()-s>max)rej(new Error('Relatório não renderizou a tempo.'));else requestAnimationFrame(c);}c();});}
+  if(isMobile){
+    showToast('Gerando relatório...');
+    waitForReport(5000).then(el=>{
+      try{
+        let styles='';
+        for(const sheet of document.styleSheets){try{for(const r of sheet.cssRules)styles+=r.cssText+'\n';}catch{}}
+        const fname=(state.meta.cliente||'relatorio-pa').replace(/[^a-z0-9_-]/gi,'_')+'_profibus_pa_'+(state.meta.data||new Date().toISOString().slice(0,10));
+        const fullHtml=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${fname}</title><style>${styles}@media print{.pt-page{transform:none!important;box-shadow:none!important;margin:0!important;page-break-after:always;}}</style></head><body>${el.outerHTML}<script>const scale=Math.min(1,(window.innerWidth-16)/(210*3.7795));document.documentElement.style.setProperty('--bp-page-scale',scale.toFixed(3));setTimeout(()=>{try{window.print();}catch{}},1500);<\/script></body></html>`;
+        const blob=new Blob([fullHtml],{type:'text/html'});
+        const url=URL.createObjectURL(blob);
+        const newWin=window.open(url,'_blank');
+        if(!newWin){const a=document.createElement('a');a.href=url;a.download=fname+'.html';a.click();showToast('Salvo como HTML. Abra e use Imprimir → PDF.');}
+        else showToast('✓ Relatório PA aberto. Imprimir → Salvar como PDF.');
+        setTimeout(()=>URL.revokeObjectURL(url),60000);
+      }catch(e){showToast('Erro: '+e.message,true);}
+    }).catch(e=>showToast(e.message,true));
+  } else {
+    showToast('Preparando PDF — use "Salvar como PDF" na janela de impressão');
+    setTimeout(()=>window.print(),400);
+  }
+});
+
+$('#btnWord').addEventListener('click',()=>{
+  $$('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab==='report'));
+  $$('.tab-content').forEach(el=>el.classList.toggle('hidden',el.id!=='tab-report'));
+  renderReport();
+  setTimeout(()=>{
+    try{
+      const cleaned=reportDoc.innerHTML.replace(/<svg[\s\S]*?<\/svg>/g,'<div style="border:1px solid #999;padding:14pt;text-align:center;color:#666;font-size:9pt">[Gráfico — disponível na versão PDF]</div>');
+      const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Relatório PROFIBUS PA</title>
+      <style>@page WordSection1{size:21cm 29.7cm;margin:1.5cm}div.WordSection1{page:WordSection1}body{font-family:Arial,sans-serif;font-size:10pt}
+      .pt-page{page-break-after:always;padding:0;margin:0;width:100%;display:block}
+      .pt-page-head{border-bottom:2pt solid #1a4db5;padding-bottom:6pt;margin-bottom:12pt}
+      .pt-table{width:100%;border-collapse:collapse}.pt-table th{border-bottom:2pt solid #333;padding:4pt 6pt}
+      .pt-table td{border-bottom:1pt solid #ccc;padding:3pt 6pt}.pt-fields{width:100%}
+      .pt-fields .lbl{display:inline-block;width:180pt;vertical-align:top}
+      .pt-fields .val{display:inline-block;vertical-align:top;font-weight:500}
+      </style></head><body><div class="WordSection1">${cleaned}</div></body></html>`;
+      const blob=new Blob(['\ufeff',html],{type:'application/msword'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      const fname=(state.meta.cliente||'relatorio-pa').replace(/[^a-z0-9_-]/gi,'_')+'_profibus_pa_'+(state.meta.data||'').replace(/-/g,'')+'.doc';
+      a.href=url;a.download=fname;a.click();URL.revokeObjectURL(url);
+      showToast('Arquivo Word gerado ✓');
+    }catch(e){showToast('Erro ao gerar Word',true);console.error(e);}
+  },250);
+});
+
+/* ============================================================
+   PWA MANIFEST
+   ============================================================ */
+const manifest={name:'BIO·PA — PROFIBUS PA Analyzer',short_name:'BIO·PA',description:'Análise de redes PROFIBUS PA (IEC 61158-2 MBP). Funciona offline.',start_url:'./',display:'standalone',background_color:'#eef1f7',theme_color:'#1a4db5',icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Ccircle cx='96' cy='96' r='96' fill='%231a4db5'/%3E%3Ccircle cx='96' cy='96' r='20' fill='%23fff'/%3E%3C/svg%3E",sizes:'192x192',type:'image/svg+xml'},{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Ccircle cx='256' cy='256' r='256' fill='%231a4db5'/%3E%3Ccircle cx='256' cy='256' r='55' fill='%23fff'/%3E%3C/svg%3E",sizes:'512x512',type:'image/svg+xml'}]};
+const mBlob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+const mUrl=URL.createObjectURL(mBlob);
+const mLink=document.createElement('link');mLink.rel='manifest';mLink.href=mUrl;document.head.appendChild(mLink);
+</script>
+</body>
+</html>

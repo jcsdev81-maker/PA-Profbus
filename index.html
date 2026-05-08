@@ -1009,15 +1009,40 @@ async function handleFile(f){
       throw new Error('Nenhum dispositivo PROFIBUS PA foi encontrado. Verifique se é um arquivo válido do ProfiTrace com dados PA (31.25 kbps / MBP).');
     }
 
-    // Forçar PA sempre
-    data.networkType='PA';
-    data.idleVoltages={}; // PA não tem idle voltage
-
-    // Validar unidade: sinais PA devem estar em mV (>20). Se vierem em V, avisar.
-    const sigVals=Object.values(data.signals).filter(v=>v!=null);
-    if(sigVals.length>0 && sigVals.reduce((s,v)=>s+v,0)/sigVals.length < 20){
-      showToast('⚠ Sinais detectados em Volts (esperado: mV). Verifique se o arquivo é realmente PA.', true);
+    // ============================================================
+    // VALIDAÇÃO RIGOROSA: REJEITAR SE NÃO FOR PA
+    // ============================================================
+    
+    // 1. Validar velocidade: PA = 31.25 kbit/s SEMPRE
+    const speed = data.network.speed.toLowerCase();
+    if (!speed.includes('31.25') && !speed.includes('31,25')) {
+      throw new Error(`❌ ARQUIVO REJEITADO: Velocidade detectada "${data.network.speed}".\n\nEste app aceita APENAS redes PROFIBUS PA (31.25 kbit/s MBP).\nPara redes DP, use o app BIO·PROFIBUS completo.`);
     }
+    
+    // 2. Rejeitar se houver idle voltage (característica de DP, não PA)
+    if (Object.keys(data.idleVoltages || {}).length > 0) {
+      throw new Error('❌ ARQUIVO REJEITADO: Idle Voltage detectado.\n\nPA (MBP) não possui idle voltage. Este parece ser um relatório DP.\nPara redes DP, use o app BIO·PROFIBUS completo.');
+    }
+    
+    // 3. Rejeitar se encontrar "AB Diff voltage" sem "PA signal level"
+    const hasAbDiff = /AB Diff voltage/i.test(data.rawText || '');
+    const hasPaSignal = /PA signal level|Niveau du signal PA/i.test(data.rawText || '');
+    if (hasAbDiff && !hasPaSignal) {
+      throw new Error('❌ ARQUIVO REJEITADO: "AB Diff voltage" detectado sem "PA signal level".\n\nEste é um relatório DP (RS-485), não PA (MBP).\nPara redes DP, use o app BIO·PROFIBUS completo.');
+    }
+    
+    // 4. Validar unidade de sinal: PA deve estar em mV (>20)
+    const sigVals = Object.values(data.signals).filter(v => v != null);
+    if (sigVals.length > 0) {
+      const avgSignal = sigVals.reduce((s, v) => s + v, 0) / sigVals.length;
+      if (avgSignal < 20) {
+        throw new Error(`❌ ARQUIVO REJEITADO: Sinais em Volts detectados (média: ${avgSignal.toFixed(2)} V).\n\nPA (MBP) usa sinais em milivolts (mV), tipicamente 350-1500 mV.\nEste parece ser um relatório DP (sinais em V).\nPara redes DP, use o app BIO·PROFIBUS completo.`);
+      }
+    }
+    
+    // 5. Se passou todas as validações, confirmar PA
+    data.networkType = 'PA';
+    data.idleVoltages = {}; // PA não tem idle voltage
 
     state.data=data;
     loadMeta();

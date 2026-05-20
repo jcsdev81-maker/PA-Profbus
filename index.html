@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="PA·Trace BR">
 <meta name="description" content="Tradutor de relatórios PROFIBUS PA do ProfiTrace para português. Funciona 100% offline.">
 <title>PA·Trace BR — Tradutor de relatórios ProfiTrace</title>
+<link rel="manifest" href="./manifest.json">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%230a3d2e'/%3E%3Cpath d='M40 60h112v8H40zM40 92h80v8H40zM40 124h112v8H40z' fill='%23f4c81f'/%3E%3Ccircle cx='160' cy='96' r='6' fill='%2378c850'/%3E%3C/svg%3E">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -250,6 +251,65 @@ footer span{color:var(--pt-mid);font-weight:500}
 
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 .processing .status-led{animation:pulse 1s ease-in-out infinite}
+
+/* ── Diagnóstico Sênior (#5) ── */
+.diag-panel{
+  display:none;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);padding:20px 22px;
+  box-shadow:var(--shadow);margin-top:18px;
+}
+.diag-panel.active{display:block}
+.diag-panel h3{font-size:17px;font-weight:700;margin-bottom:8px;color:var(--pt-deep)}
+.diag-panel h4.diag-group{
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;
+  color:var(--text-2);margin:14px 0 8px;font-family:var(--font-mono);
+}
+.diag-note{font-size:13px;color:var(--text-2);margin-bottom:10px;line-height:1.5}
+.diag-counters{
+  font-family:var(--font-mono);font-size:11px;color:var(--muted);
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:8px 12px;margin-bottom:14px;
+}
+.diag-badge{
+  display:inline-flex;align-items:center;
+  font-family:var(--font-mono);font-size:11px;font-weight:700;
+  padding:3px 10px;border-radius:14px;letter-spacing:0.05em;
+  text-transform:uppercase;
+}
+.diag-badge-crit{background:#fbe5e5;color:var(--pt-crit);border:1px solid var(--pt-crit)}
+.diag-badge-warn{background:#fdeed8;color:var(--pt-warn);border:1px solid var(--pt-warn)}
+.diag-badge-maint{background:#e9e7fb;color:#5d4ec9;border:1px solid #5d4ec9}
+.diag-badge-ok{background:#e5f4dd;color:#3a7d2d;border:1px solid #78c850}
+.diag-finding{
+  border-left:3px solid;background:var(--surface-2);
+  border-radius:var(--radius);padding:11px 14px;margin-bottom:8px;
+}
+.diag-finding.diag-crit{border-left-color:var(--pt-crit)}
+.diag-finding.diag-warn{border-left-color:var(--pt-warn)}
+.diag-finding.diag-maint{border-left-color:#5d4ec9}
+.diag-finding-head{display:flex;align-items:center;gap:9px;margin-bottom:5px;flex-wrap:wrap}
+.diag-pill{
+  font-family:var(--font-mono);font-size:10px;font-weight:700;
+  padding:2px 8px;border-radius:10px;letter-spacing:0.04em;
+}
+.diag-pill-crit{background:#fbe5e5;color:var(--pt-crit)}
+.diag-pill-warn{background:#fdeed8;color:var(--pt-warn)}
+.diag-pill-maint{background:#e9e7fb;color:#5d4ec9}
+.diag-addr{font-family:var(--font-mono);font-size:11px;color:var(--text-2);font-weight:600}
+.diag-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:5px}
+.diag-row{font-size:13px;color:var(--text-2);margin-bottom:3px;line-height:1.45}
+.diag-row strong{color:var(--text);font-weight:600}
+.diag-rule{
+  font-family:var(--font-mono);font-size:10px;color:var(--muted);
+  margin-top:4px;padding-top:4px;border-top:1px dashed var(--border);
+}
+.diag-empty{font-size:13px;color:var(--muted);padding:10px 0;text-align:center}
+.diag-base{
+  margin-top:16px;font-family:var(--font-mono);font-size:10px;color:var(--muted);
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:10px 12px;line-height:1.7;
+}
 </style>
 </head>
 <body>
@@ -325,10 +385,12 @@ footer span{color:var(--pt-mid);font-weight:500}
   <div class="summary-note" id="summaryNote"></div>
 </div>
 
+<div class="diag-panel" id="diagPanel"></div>
+
 </main>
 
 <footer>
-  <span>PA·Trace BR</span> · v0.1 · Tradução em camada · 100% offline
+  <span>PA·Trace BR</span> · <span id="footerVersion">v0.2.0</span> · Tradução em camada + Diagnóstico Sênior · 100% offline
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -344,7 +406,9 @@ footer span{color:var(--pt-mid);font-weight:500}
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('./sw.js').catch(err => {
+      console.warn('Service Worker não registrado:', err);
+    });
   });
 }
 
@@ -352,6 +416,30 @@ if (window['pdfjsLib']) {
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }
+
+/* ----------------------------------------------------------------------------
+   VERSÃO — bumpar a cada release; CACHE_VERSION (sw.js) deve seguir junto
+   ---------------------------------------------------------------------------- */
+const APP_VERSION   = 'v0.2.0';
+const CACHE_VERSION = 'patrace-v0.2.0';
+
+/* ----------------------------------------------------------------------------
+   LIMIARES PA — fontes auditáveis, ISOLADOS do DP
+   IEC 61158-2 (camada física MBP) · PTO/PI Whitepaper 2005.
+   NUNCA importar limiares de DP (AB Diff V / idle voltage) para cá.
+   ---------------------------------------------------------------------------- */
+const PA_THRESHOLDS = {
+  signal_mv: { good_min: 640, warn_min: 350, high: 1000, no_term: 1500 },
+  jitter_us: { warn: 0.8, crit: 1.5 },
+  src: 'IEC 61158-2 / PTO Whitepaper 2005',
+};
+
+/* Prefixo numérico flexível: aceita "1 ", "1. ", "13.1 ", "10.1.1. " etc.
+   Tolerância introduzida pq o ProfiTrace renumera seções entre versões. */
+const SECTION_PREFIX_RE = /^(\d+(?:\.\d+)*\.?\s+)/;
+
+/* Marcadores de "vazio" em todos os idiomas (caso o relatório esteja traduzido). */
+const EMPTY_MARKER_RE = /^(none|aucun|aucune|ninguno|ninguna|nenhum|nenhuma)$/i;
 
 /* ----------------------------------------------------------------------------
    DICIONÁRIOS DE TRADUÇÃO
@@ -496,6 +584,37 @@ const DICT_EN_PT = {
     'reservamos o direito de modificar os resultados gerados sem aviso prévio. EM NENHUMA HIPÓTESE A PROCENTEC',
   'BE LIABLE FOR ANY DIRECT OR INDIRECT DAMAGES THAT ORIGINATE FROM THE USE OF THIS DOCUMENT.':
     'SERÁ RESPONSÁVEL POR DANOS DIRETOS OU INDIRETOS DECORRENTES DO USO DESTE DOCUMENTO.',
+
+  // ── Calibração GPA 60BA R2 — entradas SEM prefixo numérico, casadas pelo passo flexível ──
+  // (Confirmadas página a página em export ProfiTrace V2.9.8)
+  'General': 'Geral',
+  'Used tools': 'Ferramentas utilizadas',
+  'Network properties': 'Propriedades da rede',
+  'Conclusion': 'Conclusão',
+  'Remarks summary': 'Resumo dos comentários',
+  'Tested subjects:': 'Itens analisados:',
+  'Project details': 'Detalhes do projeto',
+  'Live list': 'Live list',
+  'Address list': 'Lista de endereços',
+  'Bar graph': 'Gráfico de barras',
+  'Device details': 'Detalhes do dispositivo',
+  'Segment (Segment 1)': 'Segmento (Segment 1)',
+  'Measurement point (Measuring point 1)': 'Ponto de medição (Measuring point 1)',
+  // Subseções 6.x sem o prefixo numérico — para sobreviver a renumeração futura
+  'Slaves that have been lost at least one time:':
+    'Instrumentos perdidos pelo menos uma vez:',
+  'Slaves that generated diagnostics while in data exchange:':
+    'Instrumentos que geraram diagnóstico em data exchange:',
+  'Devices that have caused illegal responses:':
+    'Dispositivos que causaram respostas ilegais:',
+  'Device found on reserved address 126:':
+    'Dispositivo no endereço reservado 126:',
+  'Slaves that caused retries:':
+    'Instrumentos que causaram retentativas:',
+  'Slaves that caused syncs:':
+    'Instrumentos que enviaram sincronizações (syncs):',
+  'Parameters have been sent to the following slaves:':
+    'Parâmetros enviados aos seguintes instrumentos:',
 };
 
 const DICT_FR_PT = {
@@ -740,6 +859,358 @@ const SHORT_TOKENS_PT = {
 };
 
 /* ----------------------------------------------------------------------------
+   PARSER DE SUBSEÇÕES (item 7 do prompt — portado do DP·Trace BR)
+   ProfiTrace SEMPRE imprime o título de TODAS as subseções de "Tested
+   subjects" (6.x), mesmo quando vazias. Detectar um problema só porque o
+   título existe é falso positivo: tem que confirmar conteúdo concreto.
+   ---------------------------------------------------------------------------- */
+
+/* Extrai a lista de endereços de uma subseção.
+   (a) inline na linha do título: "6.6 Slaves that caused syncs: 3, 4, 6, 7, 22"
+   (b) blocos "Address: N" em linhas seguintes
+   Devolve array de inteiros (vazio = seção existe sem ocorrências) ou null. */
+function findSubsectionEntries(phrases, sectionLabels) {
+  for (let i = 0; i < phrases.length; i++) {
+    const stripped = phrases[i].replace(SECTION_PREFIX_RE, '');
+    const matchLabel = sectionLabels.find(l => stripped.startsWith(l));
+    if (!matchLabel) continue;
+
+    const addrs = [];
+
+    // (a) Endereços inline, após o label na mesma linha
+    let rest = stripped.slice(matchLabel.length).replace(/^[:\s]+/, '').trim();
+    let inlineList = false;
+    if (rest && !EMPTY_MARKER_RE.test(rest)) {
+      const listMatch = rest.match(/^[\d,\s]+/);
+      if (listMatch) {
+        for (const n of listMatch[0].match(/\d+/g) || []) {
+          addrs.push(parseInt(n, 10));
+        }
+        inlineList = true;
+      }
+    }
+
+    // (a.2) Linhas de CONTINUAÇÃO da lista inline (listas longas quebram)
+    if (inlineList) {
+      for (let contIdx = i + 1; contIdx < phrases.length; contIdx++) {
+        const cont = phrases[contIdx].trim();
+        if (/^[\d,\s]+$/.test(cont) && /\d/.test(cont)) {
+          for (const n of cont.match(/\d+/g) || []) addrs.push(parseInt(n, 10));
+        } else {
+          break; // linha não-numérica encerra a lista
+        }
+      }
+    }
+
+    // (b) Blocos "Address: N" em linhas seguintes (formato alternativo)
+    for (let j = i + 1; j < phrases.length; j++) {
+      const next = phrases[j].trim();
+      if (SECTION_PREFIX_RE.test(next) && j > i + 1) {
+        const nextStripped = next.replace(SECTION_PREFIX_RE, '');
+        if (!sectionLabels.some(l => nextStripped.startsWith(l))) break;
+      }
+      const m = next.match(/^Address:\s*(\d+)/i);
+      if (m) addrs.push(parseInt(m[1], 10));
+    }
+
+    return [...new Set(addrs)]; // deduplica preservando ordem
+  }
+  return null; // seção não encontrada
+}
+
+/* Verifica se uma subseção tem evidência CONCRETA de ocorrência.
+   O ProfiTrace SEMPRE imprime o título da subseção mesmo vazia, então a
+   presença do título NÃO é evidência. Evita falso positivo.
+   Retorna: true (há conteúdo) / false (vazia ou "None") / null (não encontrada). */
+function subsectionHasContent(phrases, sectionLabels) {
+  for (let i = 0; i < phrases.length; i++) {
+    const stripped = phrases[i].replace(SECTION_PREFIX_RE, '');
+    const matchLabel = sectionLabels.find(l => stripped.startsWith(l));
+    if (!matchLabel) continue;
+
+    // (a) Analisa o que vem DEPOIS do label, na mesma linha
+    let rest = stripped.slice(matchLabel.length).replace(/^[:\s]+/, '').trim();
+    if (rest) {
+      if (EMPTY_MARKER_RE.test(rest)) return false;   // marcador de vazio explícito
+      if (/\d/.test(rest)) return true;               // há números = conteúdo concreto
+      // texto não-numérico = inconclusivo, segue para linhas seguintes
+    }
+
+    // (b) Analisa linhas seguintes até a próxima seção numerada
+    for (let j = i + 1; j < phrases.length && j < i + 30; j++) {
+      const next = phrases[j].trim();
+      if (SECTION_PREFIX_RE.test(next)) {
+        const nextStripped = next.replace(SECTION_PREFIX_RE, '');
+        if (!sectionLabels.some(l => nextStripped.startsWith(l))) break;
+      }
+      if (/^Address:\s*\d+/i.test(next)) return true;
+      if (EMPTY_MARKER_RE.test(next)) return false;
+    }
+    return false; // seção encontrada, sem evidência de conteúdo
+  }
+  return null;
+}
+
+/* ----------------------------------------------------------------------------
+   DIAGNÓSTICO SÊNIOR — motor determinístico (item 5 do prompt)
+
+   Camada de confiança SEPARADA da tradução: não confia em nenhuma inferência;
+   re-extrai os números do PDF original e classifica contra os limiares PA
+   auditados (PA_THRESHOLDS). Cada achado cita a regra que o disparou.
+   Funciona apenas em relatórios EN (rótulos canônicos do ProfiTrace).
+
+   Fonte dos dados:
+   - Seção 10 (Bar graph): pares (endereço, valor) intercalados em linhas
+     curtas — endereço em uma linha, valor numérico na próxima.
+     Dois gráficos: "PA signal level" (mV) e "PA Jitter" (µs).
+   - Seção 11 (Device details): "Diag count while DX: N" por dispositivo.
+   - Seção 6.x: lista inline de slaves problemáticos.
+   ---------------------------------------------------------------------------- */
+
+const SEC6_LABELS_EN = [
+  'Slaves that have been lost at least one time:',
+  'Slaves that generated diagnostics while in data exchange:',
+  'Devices that have caused illegal responses:',
+  'Device found on reserved address 126:',
+  'Slaves that caused retries:',
+  'Slaves that caused syncs:',
+  'Parameters have been sent to the following slaves:',
+];
+
+/** Extrai as duas séries (sinal_mv / jitter_us) da seção 10 do PDF.
+ *  ProfiTrace imprime endereço e valor em LINHAS ALTERNADAS dentro do
+ *  bar graph. Reconhecemos o início de cada gráfico pelo título.
+ *  Retorna { sinal: Map<addr,mv>, jitter: Map<addr,us> }. */
+function extractBarGraphPA(pages) {
+  const sinal = new Map();
+  const jitter = new Map();
+  // Achata todas as frases (preservando ordem de leitura)
+  const phrases = pages.flatMap(p => p.lines.map(l => l.str.trim()));
+
+  // Cada gráfico começa com "PA signal level" ou "PA Jitter", seguido de
+  // uma linha "Segment / Measuring point...:" e então pares addr/valor.
+  for (let i = 0; i < phrases.length; i++) {
+    const head = phrases[i];
+    const isSignal = /^PA signal level$/i.test(head);
+    const isJitter = /^PA Jitter$/i.test(head);
+    if (!isSignal && !isJitter) continue;
+    const map = isSignal ? sinal : jitter;
+
+    // Pula até começar a sequência de números (after "Segment / Measuring point...")
+    // Coletamos pares: linha INTEIRA = inteiro 1..125 → addr; próxima linha
+    // numérica (com ponto decimal opcional) = valor.
+    for (let j = i + 1; j < phrases.length - 1 && j < i + 200; j++) {
+      const a = phrases[j];
+      const b = phrases[j + 1];
+      // Endereço é número inteiro puro entre 1 e 125
+      const ma = a.match(/^(\d{1,3})$/);
+      if (!ma) continue;
+      const addr = parseInt(ma[1], 10);
+      if (addr < 1 || addr > 125) continue;
+      // Valor é número decimal (vírgula ou ponto)
+      const mb = b.match(/^(\d+(?:[.,]\d+)?)$/);
+      if (!mb) continue;
+      const val = parseFloat(mb[1].replace(',', '.'));
+      // Só guardamos se ainda não estiver no map (preserva o primeiro gráfico)
+      if (!map.has(addr)) map.set(addr, val);
+      // Se chegamos a uma frase de seção nova, paramos
+      if (j + 2 < phrases.length && /^11\b|^10\.\d/.test(phrases[j + 2])) break;
+    }
+  }
+  return { sinal, jitter };
+}
+
+/** Extrai "Diag count while DX: N" por endereço a partir da seção 11. */
+function extractDiagCount(pages) {
+  const diag = new Map();
+  const phrases = pages.flatMap(p => p.lines.map(l => l.str.trim()));
+  let lastAddr = null;
+  for (const ph of phrases) {
+    const ma = ph.match(/^Address:\s*(\d+)/i);
+    if (ma) { lastAddr = parseInt(ma[1], 10); continue; }
+    const md = ph.match(/^Diag count while DX:\s*(\d+)/i);
+    if (md && lastAddr != null) {
+      diag.set(lastAddr, parseInt(md[1], 10));
+    }
+  }
+  return diag;
+}
+
+/** Motor determinístico — Traffic Light PA. */
+function diagSenior(pages) {
+  const T = PA_THRESHOLDS;
+  const { sinal, jitter } = extractBarGraphPA(pages);
+  const diagDX = extractDiagCount(pages);
+  const phrases = pages.flatMap(p => p.lines.map(l => l.str));
+
+  // Slaves listados em "6.2 ...generated diagnostics while in data exchange"
+  const diagInDX = findSubsectionEntries(phrases,
+    ['Slaves that generated diagnostics while in data exchange:']) || [];
+  const lost = findSubsectionEntries(phrases,
+    ['Slaves that have been lost at least one time:']) || [];
+  const retries = findSubsectionEntries(phrases,
+    ['Slaves that caused retries:']) || [];
+
+  const findings = [];
+  const allAddrs = new Set([...sinal.keys(), ...jitter.keys()]);
+
+  for (const addr of [...allAddrs].sort((a, b) => a - b)) {
+    const sig = sinal.get(addr);
+    const jit = jitter.get(addr);
+
+    if (sig != null) {
+      if (sig > T.signal_mv.no_term) {
+        findings.push({ addr, sev:'F',
+          titulo:`Sinal ${sig} mV — acima de ${T.signal_mv.no_term} mV`,
+          medida:`PA signal level: ${sig} mV (seção 10).`,
+          interp:'Nível compatível com terminador ausente / segmento sub-terminado. Conferir as DUAS terminações do segmento PA.',
+          regra:`PA signal level > ${T.signal_mv.no_term} mV — ${T.src}` });
+      } else if (sig > T.signal_mv.high) {
+        findings.push({ addr, sev:'S',
+          titulo:`Sinal ${sig} mV — acima de ${T.signal_mv.high} mV`,
+          medida:`PA signal level: ${sig} mV (seção 10).`,
+          interp:'Nível alto. Verificar terminação, comprimento de spur e fonte do coupler.',
+          regra:`PA signal level > ${T.signal_mv.high} mV — ${T.src}` });
+      } else if (sig < T.signal_mv.warn_min) {
+        findings.push({ addr, sev:'F',
+          titulo:`Sinal ${sig} mV — abaixo de ${T.signal_mv.warn_min} mV`,
+          medida:`PA signal level: ${sig} mV (seção 10).`,
+          interp:'Nível muito baixo — risco de perda de comunicação. NOTA: a faixa abaixo de '+T.signal_mv.warn_min+' mV não tem limiar inferior definido nas fontes fornecidas; classificada como crítico por decisão do app, pendente de auditoria.',
+          regra:`PA signal level < ${T.signal_mv.warn_min} mV — faixa não coberta pelas fontes (decisão do app)` });
+      } else if (sig < T.signal_mv.good_min) {
+        findings.push({ addr, sev:'S',
+          titulo:`Sinal ${sig} mV — abaixo da faixa boa (${T.signal_mv.good_min} mV)`,
+          medida:`PA signal level: ${sig} mV (seção 10).`,
+          interp:'Sinal degradado. Verificar conexões, comprimento de spur, corrosão de bornes e blindagem.',
+          regra:`PA signal level ${T.signal_mv.warn_min}–${T.signal_mv.good_min} mV — ${T.src}` });
+      }
+    }
+
+    if (jit != null) {
+      if (jit > T.jitter_us.crit) {
+        findings.push({ addr, sev:'F',
+          titulo:`Jitter ${jit} µs — acima de ${T.jitter_us.crit} µs`,
+          medida:`PA Jitter: ${jit} µs (seção 10).`,
+          interp:'Jitter crítico. Indica reflexão, ruído ou problema de terminação no segmento.',
+          regra:`PA jitter > ${T.jitter_us.crit} µs — ${T.src}` });
+      } else if (jit > T.jitter_us.warn) {
+        findings.push({ addr, sev:'S',
+          titulo:`Jitter ${jit} µs — acima de ${T.jitter_us.warn} µs`,
+          medida:`PA Jitter: ${jit} µs (seção 10).`,
+          interp:'Jitter acima do recomendado. Acompanhar tendência; verificar ruído e terminação.',
+          regra:`PA jitter > ${T.jitter_us.warn} µs — ${T.src}` });
+      }
+    }
+  }
+
+  // Slaves perdidos (6.1) — F.
+  for (const addr of lost) {
+    findings.push({ addr, sev:'F',
+      titulo:`Slave perdido ao menos uma vez`,
+      medida:`Listado em "Slaves that have been lost at least one time" (seção 6.1).`,
+      interp:'Perda de slave em DX indica falha de comunicação intermitente. Investigar camada física e cabling.',
+      regra:'ProfiTrace — seção 6.1 com ocorrência concreta' });
+  }
+  // Retries (6.5) — S.
+  for (const addr of retries) {
+    findings.push({ addr, sev:'S',
+      titulo:`Slave causou retentativas`,
+      medida:`Listado em "Slaves that caused retries" (seção 6.5).`,
+      interp:'Retentativas indicam degradação intermitente da comunicação. Verificar sinal, terminação e ruído.',
+      regra:'ProfiTrace — seção 6.5 com ocorrência concreta' });
+  }
+  // Diagnóstico em DX (6.2) — informativo (não eleva severidade sozinho).
+  for (const addr of diagInDX) {
+    const cnt = diagDX.get(addr);
+    findings.push({ addr, sev:'M',
+      titulo:`Diagnóstico em data exchange${cnt != null ? ` (${cnt} ocorrências)` : ''}`,
+      medida:`Listado em "Slaves that generated diagnostics while in data exchange" (seção 6.2)${cnt != null ? `, "Diag count while DX: ${cnt}" (seção 11)` : ''}.`,
+      interp:'Slave reportando diagnóstico durante operação normal. Investigar status interno do instrumento (modo, sensor, calibração).',
+      regra:'ProfiTrace — seção 6.2 com ocorrência concreta' });
+  }
+
+  const hasF = findings.some(f => f.sev === 'F');
+  const hasS = findings.some(f => f.sev === 'S');
+  const hasM = findings.some(f => f.sev === 'M');
+  const badge = hasF ? 'F' : hasS ? 'S' : hasM ? 'M' : 'G';
+
+  return {
+    badge,
+    findings,
+    checked: allAddrs.size,
+    counters: {
+      sinalExtraidos: sinal.size,
+      jitterExtraidos: jitter.size,
+      diagInDX: diagInDX.length,
+      retries: retries.length,
+      lost: lost.length,
+    },
+  };
+}
+
+/** Render do painel Diagnóstico Sênior no DOM. */
+function renderDiagSenior(dg) {
+  const dp = $('diagPanel');
+  if (!dp || !dg) return;
+
+  const badgeMap = {
+    F: { cls:'crit',  txt:'CRÍTICO'  },
+    S: { cls:'warn',  txt:'ATENÇÃO' },
+    M: { cls:'maint', txt:'MANUTENÇÃO' },
+    G: { cls:'ok',    txt:'SEM ACHADOS' },
+  };
+  const b = badgeMap[dg.badge];
+
+  const sevLabel = { F:'CRÍTICO', S:'ATENÇÃO', M:'MANUTENÇÃO' };
+  const fcard = f => `
+    <div class="diag-finding diag-${{F:'crit',S:'warn',M:'maint'}[f.sev]}">
+      <div class="diag-finding-head">
+        <span class="diag-pill diag-pill-${{F:'crit',S:'warn',M:'maint'}[f.sev]}">${sevLabel[f.sev]}</span>
+        <span class="diag-addr">Endereço ${f.addr}</span>
+      </div>
+      <div class="diag-title">${escapeHtml(f.titulo)}</div>
+      <div class="diag-row"><strong>Medição:</strong> ${escapeHtml(f.medida)}</div>
+      <div class="diag-row"><strong>Interpretação:</strong> ${escapeHtml(f.interp)}</div>
+      <div class="diag-rule">Regra-fonte: ${escapeHtml(f.regra)}</div>
+    </div>`;
+
+  const group = (title, sev) => {
+    const arr = dg.findings.filter(f => f.sev === sev);
+    return arr.length
+      ? `<h4 class="diag-group">${title} (${arr.length})</h4>${arr.map(fcard).join('')}`
+      : '';
+  };
+
+  const c = dg.counters;
+  dp.innerHTML = `
+    <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      Diagnóstico Sênior
+      <span class="diag-badge diag-badge-${b.cls}">${b.txt}</span>
+    </h3>
+    <p class="diag-note">
+      Interpretação determinística do app — <strong>não é a leitura da IA nem a do ProfiTrace</strong>.
+      Re-classifica os valores extraídos do PDF original contra limiares PA auditados.
+    </p>
+    <div class="diag-counters">
+      ${dg.checked} dispositivo(s) avaliado(s) · sinal=${c.sinalExtraidos} · jitter=${c.jitterExtraidos} · diag em DX=${c.diagInDX} · retries=${c.retries} · perdidos=${c.lost}
+    </div>
+    ${group('Críticos', 'F')}
+    ${group('Atenção', 'S')}
+    ${group('Manutenção', 'M')}
+    ${dg.findings.length === 0 ? '<p class="diag-empty">Nenhum achado pelos limiares PA nos dispositivos com sinal/jitter extraídos.</p>' : ''}
+    <div class="diag-base">
+      Limiares PA: bom ≥ ${PA_THRESHOLDS.signal_mv.good_min} mV ·
+      atenção ≥ ${PA_THRESHOLDS.signal_mv.warn_min} mV ·
+      alto &gt; ${PA_THRESHOLDS.signal_mv.high} mV ·
+      terminador ausente &gt; ${PA_THRESHOLDS.signal_mv.no_term} mV.<br>
+      Jitter: atenção &gt; ${PA_THRESHOLDS.jitter_us.warn} µs ·
+      crítico &gt; ${PA_THRESHOLDS.jitter_us.crit} µs.<br>
+      Fonte: ${PA_THRESHOLDS.src}.
+    </div>`;
+  dp.classList.add('active');
+}
+
+/* ----------------------------------------------------------------------------
    ESTADO GLOBAL
    ---------------------------------------------------------------------------- */
 
@@ -749,7 +1220,13 @@ const state = {
   detectedLang: null,
   pageCount: 0,
   translatedBlob: null,
+  translatedBlobUrl: null, // URL.createObjectURL ativa — revogada em resetUI
   translatedName: null,
+  pages: null,         // linhas extraídas (reusadas pelo Diagnóstico Sênior)
+  diag: null,          // último resultado do diagSenior()
+  // Reset blindado (#6): cada limpar() incrementa; operações async capturam
+  // myGen no início e checam isStale() antes de escrever no state/UI.
+  generation: 0,
   stats: {
     matchesExact: 0,
     matchesPattern: 0,
@@ -758,6 +1235,11 @@ const state = {
     pages: 0,
   },
 };
+
+/** True se a geração capturada já foi invalidada por um resetUI(). */
+function isStale(myGen) {
+  return myGen !== state.generation;
+}
 
 /* ----------------------------------------------------------------------------
    UI / LOG
@@ -805,12 +1287,23 @@ function hideWarn() {
 }
 
 function resetUI() {
+  // #6: invalida qualquer análise async em curso.
+  state.generation++;
+
+  // Revoga blob URL ativa (não acumular memória entre análises).
+  if (state.translatedBlobUrl) {
+    try { URL.revokeObjectURL(state.translatedBlobUrl); } catch {}
+  }
+
   state.file = null;
   state.fileBuffer = null;
   state.detectedLang = null;
   state.pageCount = 0;
   state.translatedBlob = null;
+  state.translatedBlobUrl = null;
   state.translatedName = null;
+  state.pages = null;
+  state.diag = null;
   state.stats = { matchesExact:0, matchesPattern:0, matchesShort:0, untranslated:0, pages:0 };
 
   $('fileName').style.display = 'none';
@@ -826,6 +1319,8 @@ function resetUI() {
   $('summary').classList.remove('active');
   $('summaryGrid').innerHTML = '';
   $('summaryNote').innerHTML = '';
+  const dp = $('diagPanel');
+  if (dp) { dp.classList.remove('active'); dp.innerHTML = ''; }
   hideWarn();
   setHeaderStatus('Pronto');
   $('fileInput').value = '';
@@ -992,6 +1487,22 @@ function translatePhrases(pages, lang) {
         matchType = 'exact';
       }
 
+      // 1b) Match flexível: prefixo numérico variável (#4).
+      // ProfiTrace renumera seções entre versões ("1 General" → "1. General",
+      // "13.1.1 Measurement point", etc.). Tira o prefixo, busca no dicionário
+      // o miolo puro, recoloca o prefixo na tradução.
+      if (!translated) {
+        const pm = text.match(SECTION_PREFIX_RE);
+        if (pm) {
+          const prefix = pm[1];               // ex.: "10.1.1 "
+          const core   = text.slice(prefix.length).trim();
+          if (dict.hasOwnProperty(core)) {
+            translated = prefix + dict[core];
+            matchType = 'pattern';
+          }
+        }
+      }
+
       // 2) Tokens curtos (Min:/Max:/Avg:/Last:)
       if (!translated && SHORT_TOKENS_PT[text]) {
         translated = SHORT_TOKENS_PT[text];
@@ -1032,6 +1543,27 @@ function translatePhrases(pages, lang) {
             translated = dict[key] + restTrans;
             matchType = 'pattern';
             break;
+          }
+        }
+      }
+
+      // 6b) Como 6, mas com PREFIXO NUMÉRICO variável (#4 + #7).
+      // Trata "6.2 Slaves that generated diagnostics while in data exchange: 58, 87, 96, 97"
+      // mesmo que o ProfiTrace renumere a subseção em outra versão.
+      if (!translated) {
+        const pm = text.match(SECTION_PREFIX_RE);
+        if (pm) {
+          const prefix = pm[1];
+          const rest   = text.slice(prefix.length);
+          for (const key of Object.keys(dict)) {
+            if (!key.endsWith(':')) continue;
+            if (rest.startsWith(key + ' ') || rest === key) {
+              const tail = rest.slice(key.length);
+              const tailTrans = translateInlineTokens(tail, lang);
+              translated = prefix + dict[key] + tailTrans;
+              matchType = 'pattern';
+              break;
+            }
           }
         }
       }
@@ -1230,9 +1762,16 @@ async function handleFile(file) {
 
 async function runTranslation() {
   if (!state.fileBuffer) return;
+
+  // #6: captura a geração; se um resetUI() rodar no meio, os checkpoints
+  // isStale() abaixo abortam a escrita no state/UI.
+  const myGen = state.generation;
+
   $('btnTranslate').disabled = true;
   $('log').classList.add('active');
   $('summary').classList.remove('active');
+  const dp = $('diagPanel');
+  if (dp) { dp.classList.remove('active'); dp.innerHTML = ''; }
   hideWarn();
   setHeaderStatus('Processando…', true);
 
@@ -1240,12 +1779,15 @@ async function runTranslation() {
     setStage('Lendo PDF', 5);
     log('Carregando PDF original…');
     const pdfDocJs = await pdfjsLib.getDocument({ data: state.fileBuffer.slice(0) }).promise;
+    if (isStale(myGen)) return;
     state.pageCount = pdfDocJs.numPages;
     state.stats.pages = pdfDocJs.numPages;
     log(`PDF carregado: ${pdfDocJs.numPages} página(s)`, 'ok');
 
     setStage('Extraindo texto', 20);
     const pages = await extractPagesWithCoords(pdfDocJs);
+    if (isStale(myGen)) return;
+    state.pages = pages;
     const allText = pages.flatMap(p => p.lines.map(l => l.str)).join('\n');
 
     setStage('Detectando idioma', 35);
@@ -1279,14 +1821,32 @@ async function runTranslation() {
       return;
     }
 
+    if (isStale(myGen)) return;
+
     setStage('Aplicando overlay no PDF', 75);
     log('Aplicando camada de tradução…');
     const blob = await applyOverlay(state.fileBuffer, subsByPage);
+    if (isStale(myGen)) return;
     state.translatedBlob = blob;
 
     // Nome do arquivo
     const base = state.file.name.replace(/\.pdf$/i, '');
     state.translatedName = base + '_PT-BR.pdf';
+
+    // Diagnóstico Sênior (#5) — motor determinístico, EN apenas (rótulos canônicos).
+    if (lang === 'en') {
+      setStage('Diagnóstico Sênior', 92);
+      try {
+        state.diag = diagSenior(pages);
+        renderDiagSenior(state.diag);
+        log(`Diagnóstico Sênior: ${state.diag.findings.length} achado(s), ${state.diag.checked} dispositivo(s) avaliado(s)`, 'ok');
+      } catch (e) {
+        console.warn('Diag Sênior falhou:', e);
+        log('Diagnóstico Sênior indisponível para este relatório', 'warn');
+      }
+    } else {
+      log('Diagnóstico Sênior disponível apenas para relatórios EN nesta versão', 'warn');
+    }
 
     setStage('Concluído', 100);
     log(`PDF traduzido pronto: ${state.translatedName}`, 'ok');
@@ -1326,16 +1886,18 @@ function showSummary(lang, totalSubs) {
 
 function downloadTranslated() {
   if (!state.translatedBlob || !state.translatedName) return;
+  // Revoga URL anterior antes de criar nova
+  if (state.translatedBlobUrl) {
+    try { URL.revokeObjectURL(state.translatedBlobUrl); } catch {}
+  }
   const url = URL.createObjectURL(state.translatedBlob);
+  state.translatedBlobUrl = url;
   const a = document.createElement('a');
   a.href = url;
   a.download = state.translatedName;
   document.body.appendChild(a);
   a.click();
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-    a.remove();
-  }, 100);
+  setTimeout(() => { a.remove(); }, 100);
 }
 
 function formatBytes(bytes) {
@@ -1372,7 +1934,9 @@ $('btnReset').addEventListener('click', resetUI);
 $('btnDownload').addEventListener('click', downloadTranslated);
 
 // Iniciado
-log('PA·Trace BR pronto. Carregue um PDF para começar.');
+log(`PA·Trace BR ${APP_VERSION} pronto. Carregue um PDF para começar.`);
+const fv = $('footerVersion');
+if (fv) fv.textContent = APP_VERSION;
 
 </script>
 

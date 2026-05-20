@@ -2,15 +2,15 @@
 // ──────────────────────────────────────────────────────────────────────
 // CACHE_VERSION DEVE seguir junto com APP_VERSION/CACHE_VERSION do
 // index.html a cada release. Bumpar invalida o cache antigo no activate.
-// sw.js, manifest.json e icon.svg ficam na MESMA pasta do index.html.
+// sw.js, manifest e icon.svg ficam na MESMA pasta do index.html.
 // ──────────────────────────────────────────────────────────────────────
-const CACHE_VERSION = 'patrace-v0.2.0';
+const CACHE_VERSION = 'patrace-v0.3.0';
 
 // App shell — cache-first.
 const SHELL = [
   './',
   './index.html',
-  './manifest.json',
+  './manifest',
   './icon.svg',
 ];
 

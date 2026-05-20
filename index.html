@@ -368,6 +368,10 @@ footer span{color:var(--pt-mid);font-weight:500}
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     Baixar PDF traduzido
   </button>
+  <button class="btn btn-ghost" id="btnWord" style="display:none">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2l1 4 1-4 1 4 1-4h2"/></svg>
+    Word (.docx)
+  </button>
 </div>
 
 <div class="log" id="log">
@@ -390,13 +394,16 @@ footer span{color:var(--pt-mid);font-weight:500}
 </main>
 
 <footer>
-  <span>PA·Trace BR</span> · <span id="footerVersion">v0.2.0</span> · Tradução em camada + Diagnóstico Sênior · 100% offline
+  <span>PA·Trace BR</span> · <span id="footerVersion">v0.3.0</span> · Tradução + Diagnóstico Sênior + Word · 100% offline
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js" id="pdfjsWorker"></script>
 <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+<!-- Word export: docx 8.5.0 (UMD do unpkg expõe global.docx — o cdnjs NÃO hospeda este pacote, usar URL errada faz typeof docx ser undefined e o Word não gera) -->
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+<script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 
 <script>
 /* ============================================================================
@@ -420,8 +427,8 @@ if (window['pdfjsLib']) {
 /* ----------------------------------------------------------------------------
    VERSÃO — bumpar a cada release; CACHE_VERSION (sw.js) deve seguir junto
    ---------------------------------------------------------------------------- */
-const APP_VERSION   = 'v0.2.0';
-const CACHE_VERSION = 'patrace-v0.2.0';
+const APP_VERSION   = 'v0.3.0';
+const CACHE_VERSION = 'patrace-v0.3.0';
 
 /* ----------------------------------------------------------------------------
    LIMIARES PA — fontes auditáveis, ISOLADOS do DP
@@ -1286,25 +1293,61 @@ function hideWarn() {
   $('warnBanner').textContent = '';
 }
 
-function resetUI() {
-  // #6: invalida qualquer análise async em curso.
-  state.generation++;
-
-  // Revoga blob URL ativa (não acumular memória entre análises).
+/**
+ * Limpa SÓ os resultados de análise (preserva o arquivo carregado).
+ * Usado tanto pelo resetUI quanto no início de runTranslation para
+ * garantir que NENHUM resíduo de uma análise anterior sobreviva — mesmo
+ * que aquela análise tenha sido abortada no meio por troca de arquivo
+ * ou por erro.
+ *
+ * Por que separar de resetUI: resetUI também zera o arquivo carregado
+ * (state.file, state.fileBuffer, UI do drop). Quando o usuário aperta
+ * "Traduzir" sobre um arquivo já carregado, queremos limpar SÓ resultados
+ * (não pedir que ele re-anexe o PDF).
+ */
+function clearAnalysisResults() {
+  // Revoga blob URL ativa do download (não acumular memória entre análises).
   if (state.translatedBlobUrl) {
     try { URL.revokeObjectURL(state.translatedBlobUrl); } catch {}
   }
 
-  state.file = null;
-  state.fileBuffer = null;
-  state.detectedLang = null;
-  state.pageCount = 0;
-  state.translatedBlob = null;
-  state.translatedBlobUrl = null;
-  state.translatedName = null;
-  state.pages = null;
-  state.diag = null;
+  // Zera tudo que é PRODUTO de uma análise (mas mantém o arquivo carregado).
+  state.detectedLang     = null;
+  state.pageCount        = 0;
+  state.translatedBlob   = null;
+  state.translatedBlobUrl= null;
+  state.translatedName   = null;
+  state.pages            = null;
+  state.diag             = null;
   state.stats = { matchesExact:0, matchesPattern:0, matchesShort:0, untranslated:0, pages:0 };
+
+  // UI dos resultados
+  $('btnDownload').style.display = 'none';
+  $('btnWord').style.display = 'none';
+  $('log').classList.remove('active');
+  $('logBody').innerHTML = '';
+  $('logFill').style.width = '0%';
+  $('logStage').textContent = '';
+  $('summary').classList.remove('active');
+  $('summaryGrid').innerHTML = '';
+  $('summaryNote').innerHTML = '';
+  const dp = $('diagPanel');
+  if (dp) { dp.classList.remove('active'); dp.innerHTML = ''; }
+  hideWarn();
+}
+
+function resetUI() {
+  // #6: invalida qualquer análise async em curso. Operações async capturaram
+  // myGen antes; após este ++, isStale(myGen) volta true e elas abortam SEM
+  // escrever em state/UI.
+  state.generation++;
+
+  // Limpa resultados primeiro
+  clearAnalysisResults();
+
+  // Depois zera o arquivo carregado
+  state.file       = null;
+  state.fileBuffer = null;
 
   $('fileName').style.display = 'none';
   $('fileName').textContent = '';
@@ -1312,16 +1355,6 @@ function resetUI() {
   $('dropTitle').textContent = 'Arraste o PDF aqui ou toque para escolher';
   $('dropHint').textContent = 'Aceita PDFs do ProfiTrace em inglês, francês ou espanhol';
   $('btnTranslate').disabled = true;
-  $('btnDownload').style.display = 'none';
-  $('log').classList.remove('active');
-  $('logBody').innerHTML = '';
-  $('logFill').style.width = '0%';
-  $('summary').classList.remove('active');
-  $('summaryGrid').innerHTML = '';
-  $('summaryNote').innerHTML = '';
-  const dp = $('diagPanel');
-  if (dp) { dp.classList.remove('active'); dp.innerHTML = ''; }
-  hideWarn();
   setHeaderStatus('Pronto');
   $('fileInput').value = '';
 }
@@ -1742,6 +1775,11 @@ function sanitizeWinAnsi(s) {
    ---------------------------------------------------------------------------- */
 
 async function handleFile(file) {
+  // Detecta troca de arquivo (mesmo sem clicar em "Limpar") e avisa no log
+  // antes do reset destruir tudo.
+  const hadPrevious = !!(state.fileBuffer || state.translatedBlob || state.pages);
+  const prevName    = state.file ? state.file.name : null;
+
   resetUI();
   if (!file) return;
   if (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
@@ -1758,20 +1796,29 @@ async function handleFile(file) {
   $('dropHint').textContent = 'Toque em "Traduzir para PT-BR" para gerar o relatório';
   $('btnTranslate').disabled = false;
   setHeaderStatus('Arquivo carregado');
+
+  // Log visível só DEPOIS do reset, para não ser apagado
+  if (hadPrevious && prevName && prevName !== file.name) {
+    $('log').classList.add('active');
+    log(`Novo arquivo: descartando análise anterior de "${prevName}"`, 'info');
+  }
 }
 
 async function runTranslation() {
   if (!state.fileBuffer) return;
 
-  // #6: captura a geração; se um resetUI() rodar no meio, os checkpoints
-  // isStale() abaixo abortam a escrita no state/UI.
+  // #6: GARANTIA reforçada de zero resíduo entre análises.
+  //   (a) Limpa qualquer produto de análise anterior ANTES de começar.
+  //       Cobre o caso "usuário aperta Traduzir 2x" sem trocar de arquivo.
+  //   (b) Incrementa generation: invalida qualquer async ainda em curso
+  //       da análise anterior. Os checkpoints isStale() abaixo abortam
+  //       sem escrever em state/UI.
+  state.generation++;
+  clearAnalysisResults();
   const myGen = state.generation;
 
   $('btnTranslate').disabled = true;
   $('log').classList.add('active');
-  $('summary').classList.remove('active');
-  const dp = $('diagPanel');
-  if (dp) { dp.classList.remove('active'); dp.innerHTML = ''; }
   hideWarn();
   setHeaderStatus('Processando…', true);
 
@@ -1853,6 +1900,7 @@ async function runTranslation() {
     log(`Tamanho: ${formatBytes(blob.size)}`);
 
     $('btnDownload').style.display = 'inline-flex';
+    $('btnWord').style.display = 'inline-flex';
     setHeaderStatus('Tradução pronta');
 
     showSummary(lang, totalSubs);
@@ -1882,6 +1930,242 @@ function showSummary(lang, totalSubs) {
     'Imagens (live list, gráficos de barras, oscilogramas) e números preservados intactos do PDF original. ' +
     (lang === 'es' ? '<br><strong>ES é experimental:</strong> dicionário ainda não calibrado com PDF real em espanhol.' : '');
   $('summary').classList.add('active');
+}
+
+/* ----------------------------------------------------------------------------
+   EXPORT WORD (.docx) — item 2 do prompt
+   Estratégia:
+   1. Diagnóstico Sênior como texto editável na primeira página (parágrafos,
+      não imagem — fica editável dentro do Word).
+   2. Cada página do PDF traduzido vira uma imagem 2x (scale=2 no canvas)
+      empilhada no docx, preservando layout, gráficos e oscilogramas.
+
+   CDN: docx 8.5.0 UMD do unpkg expõe global.docx; FileSaver expõe global.saveAs.
+   Tratamento de erro granular: distingue docx ausente vs saveAs ausente vs
+   carga parcial vs falha de render.
+   ---------------------------------------------------------------------------- */
+
+async function exportWord() {
+  if (!state.translatedBlob) {
+    alert('Gere o PDF traduzido primeiro.');
+    return;
+  }
+  const myGen = state.generation;
+  const btn = $('btnWord');
+  if (btn) btn.disabled = true;
+
+  $('log').classList.add('active');
+  hideWarn();
+  setHeaderStatus('Gerando Word…', true);
+
+  try {
+    // 1) Verificação granular de bibliotecas
+    if (typeof window.docx === 'undefined') {
+      throw new Error('Biblioteca docx não carregou. O cdnjs não hospeda este pacote — verifique a conexão ao unpkg.com.');
+    }
+    if (typeof window.saveAs === 'undefined' && typeof window.FileSaver === 'undefined') {
+      throw new Error('Biblioteca FileSaver não carregou. Verifique a conexão ao unpkg.com.');
+    }
+    // Sanity check: docx tem que ter as classes que vamos usar
+    const D = window.docx;
+    for (const cls of ['Document','Paragraph','TextRun','ImageRun','HeadingLevel','Packer','PageBreak']) {
+      if (typeof D[cls] === 'undefined') {
+        throw new Error(`docx carregou parcialmente — classe ${cls} ausente. Recarregue a página.`);
+      }
+    }
+    const save = window.saveAs || (window.FileSaver && window.FileSaver.saveAs);
+
+    log('Renderizando páginas em alta resolução (2x)…');
+    setStage('Renderizando páginas 2x', 15);
+
+    // 2) Renderizar cada página do PDF traduzido como imagem 2x
+    const translatedBuffer = await state.translatedBlob.arrayBuffer();
+    if (isStale(myGen)) return;
+    const pdfDoc = await pdfjsLib.getDocument({ data: translatedBuffer }).promise;
+    if (isStale(myGen)) return;
+
+    const pageImages = [];
+    for (let p = 1; p <= pdfDoc.numPages; p++) {
+      const page = await pdfDoc.getPage(p);
+      if (isStale(myGen)) return;
+      const viewport = page.getViewport({ scale: 2 }); // 2x DPI
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      if (isStale(myGen)) return;
+
+      // Canvas → PNG → ArrayBuffer
+      const pngBlob = await new Promise((res, rej) => {
+        canvas.toBlob(b => b ? res(b) : rej(new Error('Falha ao gerar PNG da página '+p)), 'image/png');
+      });
+      const pngBuf = await pngBlob.arrayBuffer();
+
+      // Dimensão original em pontos (PDF user units = pt) para preservar A4
+      const origViewport = page.getViewport({ scale: 1 });
+      pageImages.push({
+        data: new Uint8Array(pngBuf),
+        origW: origViewport.width,
+        origH: origViewport.height,
+      });
+
+      setStage(`Renderizando página ${p}/${pdfDoc.numPages}`, 15 + (p / pdfDoc.numPages) * 50);
+    }
+
+    log(`${pageImages.length} página(s) renderizadas`, 'ok');
+    setStage('Montando documento Word', 70);
+
+    // 3) Construir o docx
+    const children = [];
+
+    // 3a) Bloco do Diagnóstico Sênior — TEXTO editável (não imagem)
+    if (state.diag) {
+      const dg = state.diag;
+      const badgeMap = { F:'CRÍTICO', S:'ATENÇÃO', M:'MANUTENÇÃO', G:'SEM ACHADOS' };
+
+      children.push(new D.Paragraph({
+        heading: D.HeadingLevel.HEADING_1,
+        children: [new D.TextRun({ text: 'Diagnóstico Sênior', bold: true })],
+      }));
+
+      children.push(new D.Paragraph({
+        children: [
+          new D.TextRun({ text: 'Interpretação determinística do app — ', italics: true }),
+          new D.TextRun({ text: 'não é a leitura da IA nem a do ProfiTrace.', bold: true, italics: true }),
+          new D.TextRun({ text: ` Re-classifica os valores extraídos do PDF original contra limiares PA auditados (${PA_THRESHOLDS.src}).`, italics: true }),
+        ],
+      }));
+
+      children.push(new D.Paragraph({
+        children: [
+          new D.TextRun({ text: 'Status geral: ', bold: true }),
+          new D.TextRun({ text: badgeMap[dg.badge] || dg.badge, bold: true }),
+        ],
+      }));
+
+      const c = dg.counters;
+      children.push(new D.Paragraph({
+        children: [new D.TextRun(
+          `Dispositivos avaliados: ${dg.checked} · sinal=${c.sinalExtraidos} · jitter=${c.jitterExtraidos} · diag em DX=${c.diagInDX} · retries=${c.retries} · perdidos=${c.lost}`
+        )],
+      }));
+
+      const groups = [
+        { sev:'F', title:'Críticos' },
+        { sev:'S', title:'Atenção' },
+        { sev:'M', title:'Manutenção' },
+      ];
+
+      for (const g of groups) {
+        const arr = dg.findings.filter(f => f.sev === g.sev);
+        if (!arr.length) continue;
+
+        children.push(new D.Paragraph({
+          heading: D.HeadingLevel.HEADING_2,
+          children: [new D.TextRun({ text: `${g.title} (${arr.length})`, bold: true })],
+        }));
+
+        for (const f of arr) {
+          children.push(new D.Paragraph({
+            heading: D.HeadingLevel.HEADING_3,
+            children: [new D.TextRun({ text: `Endereço ${f.addr} — ${f.titulo}`, bold: true })],
+          }));
+          children.push(new D.Paragraph({
+            children: [
+              new D.TextRun({ text: 'Medição: ', bold: true }),
+              new D.TextRun(f.medida),
+            ],
+          }));
+          children.push(new D.Paragraph({
+            children: [
+              new D.TextRun({ text: 'Interpretação: ', bold: true }),
+              new D.TextRun(f.interp),
+            ],
+          }));
+          children.push(new D.Paragraph({
+            children: [
+              new D.TextRun({ text: 'Regra-fonte: ', bold: true }),
+              new D.TextRun({ text: f.regra, italics: true, size: 18 }),
+            ],
+          }));
+        }
+      }
+
+      if (dg.findings.length === 0) {
+        children.push(new D.Paragraph({
+          children: [new D.TextRun('Nenhum achado pelos limiares PA nos dispositivos com sinal/jitter extraídos.')],
+        }));
+      }
+
+      children.push(new D.Paragraph({ children: [new D.TextRun('')] })); // espaço
+      children.push(new D.Paragraph({
+        children: [new D.TextRun({
+          text: `Base do diagnóstico — Limiares PA: bom ≥ ${PA_THRESHOLDS.signal_mv.good_min} mV · atenção ≥ ${PA_THRESHOLDS.signal_mv.warn_min} mV · alto > ${PA_THRESHOLDS.signal_mv.high} mV · terminador ausente > ${PA_THRESHOLDS.signal_mv.no_term} mV. Jitter: atenção > ${PA_THRESHOLDS.jitter_us.warn} µs · crítico > ${PA_THRESHOLDS.jitter_us.crit} µs. Fonte: ${PA_THRESHOLDS.src}.`,
+          italics: true,
+          size: 18, // 9pt (medido em half-points)
+        })],
+      }));
+
+      // Quebra antes das páginas-imagem
+      children.push(new D.Paragraph({ children: [new D.PageBreak()] }));
+    }
+
+    // 3b) Cada página do PDF como imagem 2x empilhada
+    // Largura útil A4 retrato com margens padrão ≈ 580 pt. Altura proporcional.
+    const MAX_W = 580;
+    for (let i = 0; i < pageImages.length; i++) {
+      const img = pageImages[i];
+      const w = MAX_W;
+      const h = w * (img.origH / img.origW);
+
+      children.push(new D.Paragraph({
+        children: [
+          new D.ImageRun({
+            data: img.data,
+            transformation: { width: w, height: h },
+          }),
+        ],
+      }));
+
+      if (i < pageImages.length - 1) {
+        children.push(new D.Paragraph({ children: [new D.PageBreak()] }));
+      }
+    }
+
+    if (isStale(myGen)) return;
+    setStage('Gerando arquivo Word', 90);
+
+    const doc = new D.Document({
+      creator: 'PA·Trace BR',
+      description: 'Relatório PROFIBUS PA traduzido + Diagnóstico Sênior',
+      title: state.translatedName || 'Relatório PA',
+      sections: [{
+        properties: {},
+        children,
+      }],
+    });
+
+    const blob = await D.Packer.toBlob(doc);
+    if (isStale(myGen)) return;
+
+    const filename = (state.translatedName || 'Relatorio_PA.pdf').replace(/\.pdf$/i, '.docx');
+    save(blob, filename);
+
+    setStage('Concluído', 100);
+    log(`Word gerado: ${filename} (${formatBytes(blob.size)})`, 'ok');
+    setHeaderStatus('Word pronto');
+
+  } catch (e) {
+    console.error(e);
+    log(`Erro ao gerar Word: ${e.message}`, 'err');
+    showWarn(`Erro ao gerar Word: ${e.message}`);
+    setHeaderStatus('Erro no Word');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 function downloadTranslated() {
@@ -1932,6 +2216,7 @@ fileInput.addEventListener('change', e => {
 $('btnTranslate').addEventListener('click', runTranslation);
 $('btnReset').addEventListener('click', resetUI);
 $('btnDownload').addEventListener('click', downloadTranslated);
+$('btnWord').addEventListener('click', exportWord);
 
 // Iniciado
 log(`PA·Trace BR ${APP_VERSION} pronto. Carregue um PDF para começar.`);

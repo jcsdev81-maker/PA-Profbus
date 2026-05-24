@@ -394,7 +394,7 @@ footer span{color:var(--pt-mid);font-weight:500}
 </main>
 
 <footer>
-  <span>PA·Trace BR</span> · <span id="footerVersion">v0.3.0</span> · Tradução + Diagnóstico Sênior + Word · 100% offline
+  <span>PA·Trace BR</span> · <span id="footerVersion">v0.3.1</span> · Tradução + Diagnóstico Sênior + Word · 100% offline
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -427,8 +427,8 @@ if (window['pdfjsLib']) {
 /* ----------------------------------------------------------------------------
    VERSÃO — bumpar a cada release; CACHE_VERSION (sw.js) deve seguir junto
    ---------------------------------------------------------------------------- */
-const APP_VERSION   = 'v0.3.0';
-const CACHE_VERSION = 'patrace-v0.3.0';
+const APP_VERSION   = 'v0.3.1';
+const CACHE_VERSION = 'patrace-v0.3.1';
 
 /* ----------------------------------------------------------------------------
    LIMIARES PA — fontes auditáveis, ISOLADOS do DP
@@ -984,60 +984,253 @@ const SEC6_LABELS_EN = [
   'Parameters have been sent to the following slaves:',
 ];
 
-/** Extrai as duas séries (sinal_mv / jitter_us) da seção 10 do PDF.
- *  ProfiTrace imprime endereço e valor em LINHAS ALTERNADAS dentro do
- *  bar graph. Reconhecemos o início de cada gráfico pelo título.
- *  Retorna { sinal: Map<addr,mv>, jitter: Map<addr,us> }. */
+/** Conjunto de endereços PROFIBUS válidos presentes na rede.
+ *  Fonte primária: linhas "Address: N" da seção Device details — uma por
+ *  dispositivo, presente em qualquer relatório ProfiTrace.
+ *
+ *  IMPORTANTE: o pdf.js do navegador frequentemente separa o rótulo
+ *  ("Address:") e o valor ("3") em DUAS frases distintas (por causa do
+ *  alinhamento tabular). Por isso suportamos tanto "Address: 3" numa
+ *  frase única quanto "Address:" seguido por "3" em frases consecutivas.
+ *
+ *  Fallback (se Device details ausente): tabela Address list. */
+function extractValidAddresses(phrases) {
+  const addrs = new Set();
+  const LABEL_ADDR = /^(?:Address|Endereço|Endereco|Adresse|Dirección)\s*:\s*(\d*)\s*$/i;
+
+  // (1) "Address: N" — frase única OU "Address:" + próxima frase numérica
+  for (let i = 0; i < phrases.length; i++) {
+    const m = phrases[i].match(LABEL_ADDR);
+    if (!m) continue;
+    let nStr = m[1];
+    if (!nStr) {
+      // Rótulo veio sozinho — pega o próximo token numérico inteiro
+      const next = phrases[i + 1] || '';
+      const mn = next.match(/^(\d{1,3})$/);
+      if (mn) nStr = mn[1];
+    }
+    if (!nStr) continue;
+    const n = parseInt(nStr, 10);
+    if (n >= 1 && n <= 125) addrs.add(n);
+  }
+  if (addrs.size > 0) return addrs;
+
+  // (2) Fallback — tabela Address list
+  let inAddressList = false;
+  for (const ph of phrases) {
+    if (/^\d+\s+(Address list|Lista de endereços|Liste d['']adresses|Lista de direcciones)/i.test(ph) ||
+        /^(Address list|Lista de endereços|Liste d['']adresses|Lista de direcciones)$/i.test(ph)) {
+      inAddressList = true;
+      continue;
+    }
+    if (!inAddressList) continue;
+    if (/^\d+(\.\d+)*\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(ph)) {
+      inAddressList = false;
+      continue;
+    }
+    const m = ph.match(/^(\d{1,3})\s+\S/);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n >= 1 && n <= 125) addrs.add(n);
+    }
+  }
+  return addrs;
+}
+
+/** Indica se um token marca o fim do bloco de bar graph atual.
+ *  Detecção estrutural (sem hard-coding de números de seção), porque a
+ *  numeração das seções varia entre relatórios (8/9/10 ou 9/10/11
+ *  dependendo da presença de "Project details" etc).
+ *
+ *  Aceita rótulos isolados também (ex.: "Address:" sem o número), porque
+ *  o pdf.js separa rótulo e valor em frases distintas dentro de tabelas. */
+function isBarGraphEndMarker(tok) {
+  if (/^PA signal level$/i.test(tok)) return true;       // próximo gráfico
+  if (/^PA Jitter$/i.test(tok)) return true;             // próximo gráfico
+  if (/^(?:Address|Endereço|Endereco|Adresse|Dirección)\s*:\s*\d*\s*$/i.test(tok)) return true;
+  if (/^AC Noise\s*:/i.test(tok)) return true;
+  if (/^(?:Ruído AC|Bruit AC|Ruido AC)\s*:/i.test(tok)) return true;
+  if (/^(?:Device details|Detalhes do dispositivo|Détails du périphérique|Detalles del dispositivo)/i.test(tok)) return true;
+  if (/^\d+\s+(?:Device details|Detalhes do dispositivo|Détails du périphérique|Detalles del dispositivo)\b/i.test(tok)) return true;
+  if (/^End of report$/i.test(tok)) return true;
+  if (/^(?:Fim do relatório|Fin du rapport|Fin del informe)$/i.test(tok)) return true;
+  return false;
+}
+
+/** Extrai as duas séries (sinal_mv / jitter_us) do bar graph do PDF.
+ *
+ *  Abordagem: PAREAMENTO POR COORDENADAS, não por ordem de leitura.
+ *  Os relatórios ProfiTrace renderizam cada barra como dois textos no
+ *  mesmo X: o VALOR em cima (Y maior) e o ENDEREÇO embaixo (Y fixo no
+ *  baseline do gráfico). A ordem em que o pdf.js entrega esses textos
+ *  varia entre relatórios, mas a estrutura geométrica é invariante.
+ *
+ *  Algoritmo:
+ *    1. Localiza, em cada página, os títulos "PA signal level" e "PA Jitter".
+ *    2. Para cada gráfico, coleta itens numéricos puros DENTRO da
+ *       caixa do gráfico (entre os Y do título atual e do próximo
+ *       título, ou até "Device details").
+ *    3. Identifica a baseline dos endereços: o Y mais comum entre tokens
+ *       cujo valor inteiro coincide com um endereço VÁLIDO da rede
+ *       (extraído de Device details / Address list).
+ *    4. Endereços = tokens nessa baseline. Valores = tokens acima dela.
+ *    5. Pareia cada endereço com o valor de menor |Δx|.
+ *
+ *  Trava operacional: tolerância de Δx ≤ 6 px. Endereço sem valor
+ *  próximo é descartado (NÃO inventa). Se a baseline não puder ser
+ *  inferida, o gráfico inteiro é pulado e registra-se um aviso.
+ *
+ *  Retorna { sinal: Map<addr,mv>, jitter: Map<addr,us>, layoutHints: [] }. */
 function extractBarGraphPA(pages) {
   const sinal = new Map();
   const jitter = new Map();
-  // Achata todas as frases (preservando ordem de leitura)
-  const phrases = pages.flatMap(p => p.lines.map(l => l.str.trim()));
+  const layoutHints = [];
 
-  // Cada gráfico começa com "PA signal level" ou "PA Jitter", seguido de
-  // uma linha "Segment / Measuring point...:" e então pares addr/valor.
-  for (let i = 0; i < phrases.length; i++) {
-    const head = phrases[i];
-    const isSignal = /^PA signal level$/i.test(head);
-    const isJitter = /^PA Jitter$/i.test(head);
-    if (!isSignal && !isJitter) continue;
-    const map = isSignal ? sinal : jitter;
+  // Set de endereços válidos extraídos do texto inteiro (Device details).
+  const allPhrases = pages.flatMap(p => p.lines.map(l => l.str.trim())).filter(s => s.length);
+  const validAddrs = extractValidAddresses(allPhrases);
+  if (validAddrs.size === 0) {
+    layoutHints.push('aviso: nenhuma fonte de endereços válidos (Device details / Address list ausentes) — bar graph não interpretado');
+    return { sinal, jitter, layoutHints };
+  }
 
-    // Pula até começar a sequência de números (after "Segment / Measuring point...")
-    // Coletamos pares: linha INTEIRA = inteiro 1..125 → addr; próxima linha
-    // numérica (com ponto decimal opcional) = valor.
-    for (let j = i + 1; j < phrases.length - 1 && j < i + 200; j++) {
-      const a = phrases[j];
-      const b = phrases[j + 1];
-      // Endereço é número inteiro puro entre 1 e 125
-      const ma = a.match(/^(\d{1,3})$/);
-      if (!ma) continue;
-      const addr = parseInt(ma[1], 10);
-      if (addr < 1 || addr > 125) continue;
-      // Valor é número decimal (vírgula ou ponto)
-      const mb = b.match(/^(\d+(?:[.,]\d+)?)$/);
-      if (!mb) continue;
-      const val = parseFloat(mb[1].replace(',', '.'));
-      // Só guardamos se ainda não estiver no map (preserva o primeiro gráfico)
-      if (!map.has(addr)) map.set(addr, val);
-      // Se chegamos a uma frase de seção nova, paramos
-      if (j + 2 < phrases.length && /^11\b|^10\.\d/.test(phrases[j + 2])) break;
+  const NUM_RE   = /^(\d{1,4}|\d+[.,]\d+)$/;
+  const INT_RE   = /^(\d{1,4})$/;
+  const TITLE_SIG = /^PA signal level$/i;
+  const TITLE_JIT = /^PA Jitter$/i;
+
+  for (const page of pages) {
+    // Títulos dos gráficos nesta página
+    const titles = page.items
+      .filter(it => TITLE_SIG.test(it.str.trim()) || TITLE_JIT.test(it.str.trim()))
+      .map(it => ({
+        tipo: TITLE_SIG.test(it.str.trim()) ? 'signal' : 'jitter',
+        x: it.x, y: it.y,
+      }))
+      .sort((a, b) => b.y - a.y);   // ordem visual: top→bottom (Y decrescente)
+    if (titles.length === 0) continue;
+
+    for (let ti = 0; ti < titles.length; ti++) {
+      const t = titles[ti];
+      // Caixa do gráfico: Y entre o título atual e o próximo título (ou um
+      // limite inferior baseado em "Device details" / fim da página).
+      const yTop = t.y;
+      const yBottom = (ti + 1 < titles.length)
+        ? titles[ti + 1].y
+        : (() => {
+            // Encontra o item "Device details" na página, se houver
+            const dd = page.items.find(it => /^(?:\d+\s+)?(?:Device details|Detalhes do dispositivo|Détails du périphérique|Detalles del dispositivo)\b/i.test(it.str.trim()));
+            return dd ? dd.y : -Infinity;
+          })();
+
+      // Tokens numéricos puros dentro da caixa (com margem: yTop estrito,
+      // yBottom estrito; coordenadas em PDF têm origem bottom-left).
+      const tokens = page.items.filter(it => {
+        const s = it.str.trim();
+        if (!NUM_RE.test(s)) return false;
+        return it.y < yTop && it.y > yBottom;
+      }).map(it => ({
+        str: it.str.trim(),
+        x: it.x,
+        y: it.y,
+        n: parseFloat(it.str.trim().replace(',', '.')),
+        intVal: INT_RE.test(it.str.trim()) ? parseInt(it.str.trim(), 10) : null,
+      }));
+
+      if (tokens.length === 0) continue;
+
+      // Identifica a baseline dos endereços: Y mais comum entre tokens
+      // cujo valor inteiro está em validAddrs. Tolerância de Y: ±2 px.
+      const addrCandidates = tokens.filter(tk => tk.intVal != null && validAddrs.has(tk.intVal));
+      if (addrCandidates.length === 0) {
+        layoutHints.push(`${t.tipo}: nenhum endereço válido encontrado na caixa — gráfico ignorado`);
+        continue;
+      }
+      // Bucket por Y (resolução 2 px)
+      const yBuckets = new Map();
+      for (const tk of addrCandidates) {
+        const bucket = Math.round(tk.y / 2) * 2;
+        yBuckets.set(bucket, (yBuckets.get(bucket) || 0) + 1);
+      }
+      const baselineY = [...yBuckets.entries()].sort((a, b) => b[1] - a[1])[0][0];
+
+      // Endereços: tokens cujo Y está dentro de ±2 px da baseline E valor
+      // está em validAddrs.
+      const addrs = tokens
+        .filter(tk => Math.abs(tk.y - baselineY) <= 2 && tk.intVal != null && validAddrs.has(tk.intVal))
+        .sort((a, b) => a.x - b.x);
+
+      // Valores: tokens cujo Y está ACIMA da baseline (em coordenadas PDF
+      // bottom-left, "acima" = Y maior).
+      const vals = tokens
+        .filter(tk => tk.y > baselineY + 3)
+        .sort((a, b) => a.x - b.x);
+
+      if (addrs.length === 0 || vals.length === 0) {
+        layoutHints.push(`${t.tipo}: addrs=${addrs.length} vals=${vals.length} — gráfico ignorado`);
+        continue;
+      }
+
+      // Pareia cada endereço com o valor de menor |Δx|. Tolerância 6 px.
+      const TOL_DX = 6;
+      const map = t.tipo === 'signal' ? sinal : jitter;
+      const usedVals = new Set();
+      let paired = 0;
+      for (const a of addrs) {
+        let best = null, bestDx = Infinity;
+        for (let vi = 0; vi < vals.length; vi++) {
+          if (usedVals.has(vi)) continue;
+          const dx = Math.abs(vals[vi].x - a.x);
+          if (dx < bestDx) { bestDx = dx; best = vi; }
+        }
+        if (best != null && bestDx <= TOL_DX) {
+          if (!map.has(a.intVal)) map.set(a.intVal, vals[best].n);
+          usedVals.add(best);
+          paired++;
+        }
+      }
+      layoutHints.push(`${t.tipo}: ${paired}/${addrs.length} pares por coordenada (baselineY=${baselineY})`);
     }
   }
-  return { sinal, jitter };
+
+  return { sinal, jitter, layoutHints };
 }
 
-/** Extrai "Diag count while DX: N" por endereço a partir da seção 11. */
+/** Extrai "Diag count while DX: N" por endereço a partir da Device details.
+ *  Suporta tanto frase única ("Address: 3", "Diag count while DX: 15")
+ *  quanto rótulo + valor em frases separadas (formato comum do pdf.js
+ *  ao parsear tabelas: ["Address:", "3", ..., "Diag count while DX:", "15"]). */
 function extractDiagCount(pages) {
   const diag = new Map();
   const phrases = pages.flatMap(p => p.lines.map(l => l.str.trim()));
+  const LABEL_ADDR = /^(?:Address|Endereço|Endereco|Adresse|Dirección)\s*:\s*(\d*)\s*$/i;
+  const LABEL_DIAG = /^(?:Diag count while DX|Diagnósticos em DX|Nombre de diag\. pendant DX|Conteo de diag\. en DX)\s*:\s*(\d*)\s*$/i;
   let lastAddr = null;
-  for (const ph of phrases) {
-    const ma = ph.match(/^Address:\s*(\d+)/i);
-    if (ma) { lastAddr = parseInt(ma[1], 10); continue; }
-    const md = ph.match(/^Diag count while DX:\s*(\d+)/i);
+  for (let i = 0; i < phrases.length; i++) {
+    const ph = phrases[i];
+    const ma = ph.match(LABEL_ADDR);
+    if (ma) {
+      let nStr = ma[1];
+      if (!nStr) {
+        const next = phrases[i + 1] || '';
+        const mn = next.match(/^(\d{1,3})$/);
+        if (mn) nStr = mn[1];
+      }
+      if (nStr) {
+        const n = parseInt(nStr, 10);
+        if (n >= 1 && n <= 125) lastAddr = n;
+      }
+      continue;
+    }
+    const md = ph.match(LABEL_DIAG);
     if (md && lastAddr != null) {
-      diag.set(lastAddr, parseInt(md[1], 10));
+      let nStr = md[1];
+      if (!nStr) {
+        const next = phrases[i + 1] || '';
+        const mn = next.match(/^(\d+)$/);
+        if (mn) nStr = mn[1];
+      }
+      if (nStr) diag.set(lastAddr, parseInt(nStr, 10));
     }
   }
   return diag;
@@ -1046,7 +1239,7 @@ function extractDiagCount(pages) {
 /** Motor determinístico — Traffic Light PA. */
 function diagSenior(pages) {
   const T = PA_THRESHOLDS;
-  const { sinal, jitter } = extractBarGraphPA(pages);
+  const { sinal, jitter, layoutHints } = extractBarGraphPA(pages);
   const diagDX = extractDiagCount(pages);
   const phrases = pages.flatMap(p => p.lines.map(l => l.str));
 
@@ -1145,6 +1338,7 @@ function diagSenior(pages) {
     badge,
     findings,
     checked: allAddrs.size,
+    layoutHints: layoutHints || [],
     counters: {
       sinalExtraidos: sinal.size,
       jitterExtraidos: jitter.size,
@@ -1201,6 +1395,7 @@ function renderDiagSenior(dg) {
     <div class="diag-counters">
       ${dg.checked} dispositivo(s) avaliado(s) · sinal=${c.sinalExtraidos} · jitter=${c.jitterExtraidos} · diag em DX=${c.diagInDX} · retries=${c.retries} · perdidos=${c.lost}
     </div>
+    ${(dg.layoutHints && dg.layoutHints.length) ? `<div class="diag-counters" style="opacity:.78;font-style:italic">parser bar graph — ${dg.layoutHints.map(escapeHtml).join(' · ')}</div>` : ''}
     ${group('Críticos', 'F')}
     ${group('Atenção', 'S')}
     ${group('Manutenção', 'M')}
@@ -2222,6 +2417,208 @@ $('btnWord').addEventListener('click', exportWord);
 log(`PA·Trace BR ${APP_VERSION} pronto. Carregue um PDF para começar.`);
 const fv = $('footerVersion');
 if (fv) fv.textContent = APP_VERSION;
+
+/* ----------------------------------------------------------------------------
+   AUTO-TESTES DO PARSER (v0.3.1)
+   - Não rodam ao iniciar. Disponíveis pelo console: window.runParserTests()
+   - Cobrem o pareamento por coordenadas (formato real dos PDFs ProfiTrace
+     em pdf.js) + casos de borda (gráfico vazio, ausência de Device
+     details, baseline inferível, valor sem endereço próximo).
+   ---------------------------------------------------------------------------- */
+window.runParserTests = function runParserTests() {
+  const results = [];
+  const ok = (name) => results.push({ name, pass: true });
+  const fail = (name, msg) => results.push({ name, pass: false, msg });
+
+  // mkPages constrói uma página no formato { items, lines } que o parser usa.
+  // items são tokens com coordenadas (X, Y). lines é a versão agregada de
+  // texto (usada por extractValidAddresses e detecção de fim).
+  function mkPages(items, extraLines = []) {
+    const page = {
+      pageIndex: 0,
+      pageWidth: 600, pageHeight: 800,
+      items: items.map(it => ({
+        str: it.str, x: it.x, y: it.y,
+        fontSize: 10, width: it.str.length * 5, fontName: 'Arial',
+      })),
+      lines: [],
+    };
+    // lines no formato { str } pra extractValidAddresses
+    const byY = new Map();
+    for (const it of page.items) {
+      const yBucket = Math.round(it.y);
+      if (!byY.has(yBucket)) byY.set(yBucket, []);
+      byY.get(yBucket).push(it);
+    }
+    page.lines = [];
+    for (const its of byY.values()) {
+      its.sort((a, b) => a.x - b.x);
+      page.lines.push({ str: its.map(i => i.str).join(' ') });
+    }
+    // Linhas extras textuais (ex.: "Address: 3" da seção Device details)
+    extraLines.forEach(s => page.lines.push({ str: s }));
+    return [page];
+  }
+
+  // Helper: gera tokens de um bar graph (título + barras com valor em cima e
+  // endereço embaixo, espaçamento X regular).
+  function mkBarGraph({ titulo, titleX, titleY, addrs, vals, addrY, baseX = 100, dx = 20 }) {
+    const items = [{ str: titulo, x: titleX, y: titleY }];
+    for (let k = 0; k < addrs.length; k++) {
+      const x = baseX + k * dx;
+      // Valor (Y maior = mais acima visualmente)
+      const valStr = (typeof vals[k] === 'number' && !Number.isInteger(vals[k]))
+        ? vals[k].toFixed(1) : String(vals[k]);
+      items.push({ str: valStr, x: x, y: addrY + 80 + (vals[k] % 7) }); // y varia um pouco por barra
+      // Endereço (na baseline)
+      items.push({ str: String(addrs[k]), x: x + 3, y: addrY });
+    }
+    return items;
+  }
+
+  // ---- T1: GPA 60BA — 13 dispositivos, gráficos signal + jitter ----
+  {
+    const addrs = [1, 52, 55, 56, 58, 59, 60, 85, 86, 87, 96, 97, 98];
+    const sig = [815, 670, 505, 570, 700, 570, 660, 660, 585, 575, 685, 675, 645];
+    const jit = [0.2, 0.5, 1.0, 0.6, 0.5, 0.6, 0.8, 0.8, 1.0, 0.6, 0.5, 0.5, 0.9];
+    const items = [
+      ...mkBarGraph({ titulo: 'PA signal level', titleX: 85, titleY: 600, addrs, vals: sig, addrY: 448 }),
+      ...mkBarGraph({ titulo: 'PA Jitter',       titleX: 85, titleY: 425, addrs, vals: jit, addrY: 274 }),
+      { str: 'Device details', x: 85, y: 200 },
+    ];
+    const extraLines = addrs.map(a => `Address: ${a}`);
+    const r = extractBarGraphPA(mkPages(items, extraLines));
+    let allMatch = true; const diffs = [];
+    for (let k = 0; k < addrs.length; k++) {
+      if (r.sinal.get(addrs[k]) !== sig[k]) { allMatch = false; diffs.push(`sinal ${addrs[k]}: esp=${sig[k]} obt=${r.sinal.get(addrs[k])}`); }
+      if (Math.abs(r.jitter.get(addrs[k]) - jit[k]) > 1e-9) { allMatch = false; diffs.push(`jitter ${addrs[k]}: esp=${jit[k]} obt=${r.jitter.get(addrs[k])}`); }
+    }
+    if (allMatch && r.sinal.size === addrs.length && r.jitter.size === addrs.length) ok('T1 GPA 60BA — 13 dispositivos');
+    else fail('T1 GPA 60BA', diffs.slice(0, 3).join(' | '));
+  }
+
+  // ---- T2: DIFUSOR 2 — 14 dispositivos, endereços não-contíguos ----
+  {
+    const addrs = [3, 4, 5, 7, 11, 12, 13, 14, 15, 18, 19, 20, 21, 22];
+    const sig = [793, 672, 657, 712, 647, 567, 637, 652, 763, 687, 562, 547, 617, 542];
+    const jit = [0.9, 0.9, 1.1, 0.8, 0.6, 1.1, 0.8, 0.8, 0.8, 0.6, 0.6, 0.9, 0.6, 0.9];
+    const items = [
+      ...mkBarGraph({ titulo: 'PA signal level', titleX: 85, titleY: 600, addrs, vals: sig, addrY: 448 }),
+      ...mkBarGraph({ titulo: 'PA Jitter',       titleX: 85, titleY: 425, addrs, vals: jit, addrY: 274 }),
+      { str: 'Device details', x: 85, y: 200 },
+    ];
+    const extraLines = ['Address: 1', ...addrs.map(a => `Address: ${a}`)];
+    const r = extractBarGraphPA(mkPages(items, extraLines));
+    let allMatch = true; const diffs = [];
+    for (let k = 0; k < addrs.length; k++) {
+      if (r.sinal.get(addrs[k]) !== sig[k]) { allMatch = false; diffs.push(`sinal ${addrs[k]}: esp=${sig[k]} obt=${r.sinal.get(addrs[k])}`); }
+      if (Math.abs(r.jitter.get(addrs[k]) - jit[k]) > 1e-9) { allMatch = false; diffs.push(`jitter ${addrs[k]}: esp=${jit[k]} obt=${r.jitter.get(addrs[k])}`); }
+    }
+    if (allMatch && r.sinal.size === addrs.length && r.jitter.size === addrs.length) ok('T2 DIFUSOR 2 — 14 dispositivos');
+    else fail('T2 DIFUSOR 2', diffs.slice(0, 3).join(' | '));
+  }
+
+  // ---- T3: aborta sem Device details / Address list ----
+  {
+    const addrs = [3, 4, 5]; const sig = [700, 650, 600];
+    const items = mkBarGraph({ titulo: 'PA signal level', titleX: 85, titleY: 600, addrs, vals: sig, addrY: 448 });
+    const r = extractBarGraphPA(mkPages(items, []));
+    if (r.sinal.size === 0 && r.layoutHints.some(h => h.includes('nenhuma fonte'))) ok('T3 aborta sem ground truth');
+    else fail('T3 aborta sem ground truth', `size=${r.sinal.size} hints=${r.layoutHints.join(';')}`);
+  }
+
+  // ---- T4: extractValidAddresses prefere Device details sobre Address list ----
+  {
+    const phrases = [
+      '8 Address list',
+      'Address IdentNo Manufacturer Model name GSD name',
+      '99 - - Foo -',
+      '11 Device details',
+      'Address: 3', 'Address: 4',
+    ];
+    const s = extractValidAddresses(phrases);
+    if (s.has(3) && s.has(4) && !s.has(99)) ok('T4 prefere Device details');
+    else fail('T4 prefere Device details', `set=${[...s]}`);
+  }
+
+  // ---- T4b: rótulo separado (formato real pdf.js) ----
+  {
+    const phrases = ['10 Device details', 'Address:', '3', 'Address:', '4', 'Address:', '5'];
+    const s = extractValidAddresses(phrases);
+    if (s.has(3) && s.has(4) && s.has(5) && s.size === 3) ok('T4b extractValidAddresses rótulo separado pdf.js');
+    else fail('T4b', `set=${[...s]}`);
+  }
+
+  // ---- T5: fallback para Address list quando Device details ausente ----
+  {
+    const addrs = [3, 4, 5]; const sig = [700, 650, 600];
+    const items = mkBarGraph({ titulo: 'PA signal level', titleX: 85, titleY: 600, addrs, vals: sig, addrY: 448 });
+    const extraLines = [
+      '8 Address list',
+      'Address IdentNo Manufacturer Model name GSD name',
+      '3 0C15 Rosemount YP0 X YPX.GSD',
+      '4 8079 SIEMENS AG YP0 Y YPY.GSD',
+      '5 1039 Emerson YP0 Z YPZ.GSD',
+    ];
+    const r = extractBarGraphPA(mkPages(items, extraLines));
+    if (r.sinal.get(3) === 700 && r.sinal.get(4) === 650 && r.sinal.get(5) === 600) ok('T5 fallback Address list');
+    else fail('T5 fallback Address list', `sinal=${[...r.sinal]} hints=${r.layoutHints.join(';')}`);
+  }
+
+  // ---- T6: extractDiagCount com rótulo separado ----
+  {
+    const phrases = [
+      '10 Device details',
+      'Address:', '58', 'Device name:', 'YP0 TT303', 'Diag count while DX:', '1811',
+      'Address:', '87', 'Diag count while DX:', '1856',
+    ];
+    const pagesObj = [{ lines: phrases.map(s => ({ str: s })) }];
+    const d = extractDiagCount(pagesObj);
+    if (d.get(58) === 1811 && d.get(87) === 1856) ok('T6 extractDiagCount label separado');
+    else fail('T6 extractDiagCount', `d=${[...d]}`);
+  }
+
+  // ---- T7: barra sem par horizontal próximo é descartada (zero invenção) ----
+  {
+    const items = [
+      { str: 'PA signal level', x: 85, y: 600 },
+      // Endereço 3 na baseline + valor 700 longe (Δx > 6)
+      { str: '3', x: 103, y: 448 },
+      { str: '700', x: 200, y: 530 },
+      { str: 'Device details', x: 85, y: 200 },
+    ];
+    const r = extractBarGraphPA(mkPages(items, ['Address: 3']));
+    if (r.sinal.size === 0) ok('T7 descarta par sem proximidade horizontal');
+    else fail('T7 descarta par distante', `sinal=${[...r.sinal]}`);
+  }
+
+  // ---- T8: end markers multilíngue ----
+  {
+    const cases = [
+      ['Address: 5', true], ['Address:', true], ['Endereço: 5', true], ['AC Noise:', true],
+      ['Ruído AC:', true], ['PA Jitter', true], ['Detalhes do dispositivo', true],
+      ['10 Device details', true], ['Fim do relatório', true],
+      ['815', false], ['Segment / Measuring point...:', false],
+    ];
+    let pass = true, bad = null;
+    for (const [t, e] of cases) {
+      if (isBarGraphEndMarker(t) !== e) { pass = false; bad = `"${t}"→${isBarGraphEndMarker(t)} esp=${e}`; break; }
+    }
+    if (pass) ok('T8 end markers multilíngue'); else fail('T8', bad);
+  }
+
+  // ---- Sumário ----
+  const passed = results.filter(r => r.pass).length;
+  const total = results.length;
+  console.group(`PA·Trace BR — auto-testes do parser (${passed}/${total})`);
+  results.forEach(r => {
+    if (r.pass) console.log(`✓ ${r.name}`);
+    else console.error(`✗ ${r.name}${r.msg ? ' — ' + r.msg : ''}`);
+  });
+  console.groupEnd();
+  return { passed, total, results };
+};
+log(`Auto-testes do parser disponíveis: digite runParserTests() no console.`);
 
 </script>
 
